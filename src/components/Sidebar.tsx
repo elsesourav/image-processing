@@ -351,7 +351,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOperationSelect }) => {
          {/* Toggle Button */}
          <button
             onClick={toggleSidebar}
-            className="absolute top-4 right-0 transform translate-x-1/2 bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors z-10"
+            className="absolute top-4 right-2 transform bg-primary text-primary-foreground rounded-full p-1.5 shadow-md hover:bg-primary/90 transition-colors z-10"
             aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
          >
             {isOpen ? <PanelLeft size={16} /> : <Menu size={16} />}
@@ -368,7 +368,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOperationSelect }) => {
                <h2 className="text-lg font-semibold mb-4">Image Processing</h2>
             )}
 
-            <div className={cn("space-y-1", !isOpen && "mt-8")}>
+            <div className={cn("space-y-1", !isOpen && "mt-12")}>
                {isOpen ? (
                   // Full sidebar content
                   PROCESSING_CATEGORIES.map((category) => (

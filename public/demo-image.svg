@@ -1,53 +1,101 @@
-<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
-      <stop offset="25%" style="stop-color:#4ecdc4;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#45b7d1;stop-opacity:1" />
-      <stop offset="75%" style="stop-color:#96ceb4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#feca57;stop-opacity:1" />
+    <!-- Gradients for various effects -->
+    <radialGradient id="centerGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#4ECDC4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#45B7D1;stop-opacity:1" />
+    </radialGradient>
+    
+    <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2C3E50;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#34495E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2C3E50;stop-opacity:1" />
     </linearGradient>
-    <pattern id="checkerboard" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-      <rect x="0" y="0" width="10" height="10" fill="#f0f0f0"/>
-      <rect x="10" y="10" width="10" height="10" fill="#f0f0f0"/>
-      <rect x="0" y="10" width="10" height="10" fill="#e0e0e0"/>
-      <rect x="10" y="0" width="10" height="10" fill="#e0e0e0"/>
+    
+    <!-- Noise pattern -->
+    <filter id="noise">
+      <feTurbulence baseFrequency="0.9" numOctaves="1" result="noise"/>
+      <feColorMatrix in="noise" type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="discrete" tableValues="0.1 0.05 0.02 0.01"/>
+      </feComponentTransfer>
+      <feComposite operator="over" in2="SourceGraphic"/>
+    </filter>
+    
+    <!-- Grid pattern for morphological operations -->
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" stroke="#95A5A6" stroke-width="0.5" fill="none"/>
     </pattern>
   </defs>
   
-  <!-- Background -->
-  <rect width="400" height="300" fill="url(#grad1)"/>
+  <!-- Background with gradient -->
+  <rect width="512" height="512" fill="url(#edgeGradient)"/>
   
-  <!-- Checkerboard pattern area -->
-  <rect x="50" y="50" width="100" height="100" fill="url(#checkerboard)" stroke="#333" stroke-width="2"/>
+  <!-- Grid overlay -->
+  <rect width="512" height="512" fill="url(#grid)" opacity="0.3"/>
   
-  <!-- Geometric shapes for testing -->
-  <circle cx="300" cy="80" r="40" fill="#ff4757" opacity="0.8"/>
-  <rect x="250" y="150" width="80" height="60" fill="#2ed573" opacity="0.7" rx="10"/>
-  <polygon points="100,200 150,180 200,200 175,250 125,250" fill="#3742fa" opacity="0.6"/>
+  <!-- Central circle with radial gradient (good for histogram operations) -->
+  <circle cx="256" cy="256" r="120" fill="url(#centerGradient)" opacity="0.8"/>
   
-  <!-- Text for OCR testing -->
-  <text x="50" y="250" font-family="Arial, sans-serif" font-size="16" fill="#2c2c2c">Demo Image for Processing</text>
-  <text x="50" y="270" font-family="Arial, sans-serif" font-size="12" fill="#666">Test various algorithms</text>
+  <!-- Geometric shapes for edge detection -->
+  <!-- Square -->
+  <rect x="80" y="80" width="80" height="80" fill="#E74C3C" stroke="#C0392B" stroke-width="3"/>
   
-  <!-- Fine details for pixel inspection -->
-  <g transform="translate(320, 200)">
-    <rect x="0" y="0" width="2" height="2" fill="#000"/>
-    <rect x="2" y="0" width="2" height="2" fill="#fff"/>
-    <rect x="0" y="2" width="2" height="2" fill="#fff"/>
-    <rect x="2" y="2" width="2" height="2" fill="#000"/>
-    <rect x="4" y="0" width="2" height="2" fill="#ff0000"/>
-    <rect x="6" y="0" width="2" height="2" fill="#00ff00"/>
-    <rect x="4" y="2" width="2" height="2" fill="#0000ff"/>
-    <rect x="6" y="2" width="2" height="2" fill="#ffff00"/>
+  <!-- Triangle -->
+  <polygon points="400,80 440,160 360,160" fill="#27AE60" stroke="#229954" stroke-width="3"/>
+  
+  <!-- Hexagon -->
+  <polygon points="140,400 170,380 200,400 200,440 170,460 140,440" fill="#8E44AD" stroke="#7D3C98" stroke-width="3"/>
+  
+  <!-- Text regions for OCR/text processing -->
+  <text x="256" y="50" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#FFFFFF">IMAGE PROCESSING</text>
+  <text x="256" y="480" text-anchor="middle" font-family="Arial" font-size="16" fill="#BDC3C7">Demo Test Image</text>
+  
+  <!-- Fine details for sharpening -->
+  <g stroke="#FFFFFF" stroke-width="1" fill="none">
+    <line x1="320" y1="300" x2="380" y2="360"/>
+    <line x1="380" y1="300" x2="320" y2="360"/>
+    <circle cx="350" cy="330" r="15"/>
   </g>
   
-  <!-- Noise pattern for filtering tests -->
-  <g opacity="0.3">
-    <circle cx="150" cy="80" r="1" fill="#000"/>
-    <circle cx="155" cy="85" r="1" fill="#000"/>
-    <circle cx="160" cy="75" r="1" fill="#000"/>
-    <circle cx="165" cy="90" r="1" fill="#000"/>
-    <circle cx="170" cy="70" r="1" fill="#000"/>
+  <!-- Circles with different intensities for thresholding -->
+  <circle cx="100" cy="300" r="25" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="150" cy="300" r="25" fill="#CCCCCC" opacity="0.7"/>
+  <circle cx="200" cy="300" r="25" fill="#888888" opacity="0.5"/>
+  <circle cx="250" cy="300" r="25" fill="#444444" opacity="0.3"/>
+  <circle cx="300" cy="300" r="25" fill="#000000" opacity="0.1"/>
+  
+  <!-- Color blocks for color space conversion -->
+  <rect x="400" y="200" width="30" height="30" fill="#FF0000"/>
+  <rect x="430" y="200" width="30" height="30" fill="#00FF00"/>
+  <rect x="460" y="200" width="30" height="30" fill="#0000FF"/>
+  <rect x="400" y="230" width="30" height="30" fill="#FFFF00"/>
+  <rect x="430" y="230" width="30" height="30" fill="#FF00FF"/>
+  <rect x="460" y="230" width="30" height="30" fill="#00FFFF"/>
+  
+  <!-- Contrast regions -->
+  <rect x="50" y="180" width="60" height="60" fill="#000000"/>
+  <rect x="110" y="180" width="60" height="60" fill="#FFFFFF"/>
+  
+  <!-- Diagonal lines for directional filtering -->
+  <g stroke="#F39C12" stroke-width="2">
+    <line x1="350" y1="400" x2="450" y2="450"/>
+    <line x1="350" y1="420" x2="450" y2="470"/>
+    <line x1="350" y1="440" x2="450" y2="490"/>
   </g>
+  
+  <!-- Concentric circles for radial operations -->
+  <g fill="none" stroke="#E67E22" stroke-width="2" opacity="0.6">
+    <circle cx="80" cy="450" r="15"/>
+    <circle cx="80" cy="450" r="25"/>
+    <circle cx="80" cy="450" r="35"/>
+  </g>
+  
+  <!-- Noise overlay for denoising operations -->
+  <rect width="512" height="512" fill="white" filter="url(#noise)" opacity="0.1"/>
+  
+  <!-- Border frame -->
+  <rect x="5" y="5" width="502" height="502" fill="none" stroke="#34495E" stroke-width="4"/>
 </svg>

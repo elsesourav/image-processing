@@ -302,7 +302,8 @@ export const PROCESSING_CATEGORIES: ProcessingCategory[] = [
             id: "zero-padding",
             name: "Zero Padding",
             category: "padding",
-            description: "Constant padding with value 0 - most common in deep learning",
+            description:
+               "Constant padding with value 0 - most common in deep learning",
             parameters: { paddingSize: 10 },
          },
          {
@@ -330,7 +331,8 @@ export const PROCESSING_CATEGORIES: ProcessingCategory[] = [
             id: "wrap-padding",
             name: "Wrap Padding",
             category: "padding",
-            description: "Circular padding - wraps image values from opposite edge",
+            description:
+               "Circular padding - wraps image values from opposite edge",
             parameters: { paddingSize: 10 },
          },
          {

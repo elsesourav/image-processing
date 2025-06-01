@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { ImageUpload } from "./components/ImageUpload";
 import { ImageViewer } from "./components/ImageViewer";
+import { OperationParameters } from "./components/OperationParameters";
 import { Sidebar } from "./components/Sidebar";
 import { type ImageData, type ProcessingOperation } from "./types";
 import { ImageProcessor } from "./utils/image-processing";
@@ -10,7 +11,9 @@ const operationFunctions = {
    contrast: (imageData: ImageData, operation: ProcessingOperation) =>
       ImageProcessor.adjustContrast(
          imageData,
-         typeof operation.parameters?.factor === 'number' ? operation.parameters.factor : 1.5
+         typeof operation.parameters?.factor === "number"
+            ? operation.parameters.factor
+            : 1.5
       ),
 
    histogram: (imageData: ImageData) =>
@@ -39,25 +42,60 @@ const operationFunctions = {
 
    // Padding operations
    "zero-padding": (imageData: ImageData, operation: ProcessingOperation) =>
-      ImageProcessor.zeroPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+      ImageProcessor.zeroPadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10
+      ),
 
-   "replicate-padding": (imageData: ImageData, operation: ProcessingOperation) =>
-      ImageProcessor.replicatePadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+   "replicate-padding": (
+      imageData: ImageData,
+      operation: ProcessingOperation
+   ) =>
+      ImageProcessor.replicatePadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10
+      ),
 
    "reflect-padding": (imageData: ImageData, operation: ProcessingOperation) =>
-      ImageProcessor.reflectPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+      ImageProcessor.reflectPadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10
+      ),
 
-   "symmetric-padding": (imageData: ImageData, operation: ProcessingOperation) =>
-      ImageProcessor.symmetricPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+   "symmetric-padding": (
+      imageData: ImageData,
+      operation: ProcessingOperation
+   ) =>
+      ImageProcessor.symmetricPadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10
+      ),
 
    "wrap-padding": (imageData: ImageData, operation: ProcessingOperation) =>
-      ImageProcessor.wrapPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+      ImageProcessor.wrapPadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10
+      ),
 
    "custom-padding": (imageData: ImageData, operation: ProcessingOperation) =>
       ImageProcessor.customPadding(
          imageData,
-         typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10,
-         typeof operation.parameters?.customValue === 'number' ? operation.parameters.customValue : 128
+         typeof operation.parameters?.paddingSize === "number"
+            ? operation.parameters.paddingSize
+            : 10,
+         typeof operation.parameters?.customValue === "number"
+            ? operation.parameters.customValue
+            : 8421504 // Default gray: (128 << 16) | (128 << 8) | 128
       ),
 };
 
@@ -65,6 +103,11 @@ function App() {
    const [originalImage, setOriginalImage] = useState<string | null>(null);
    const [processedImage, setProcessedImage] = useState<string | null>(null);
    const [lastOperation, setLastOperation] = useState<string>("");
+   const [selectedOperation, setSelectedOperation] =
+      useState<ProcessingOperation | null>(null);
+   const [operationParameters, setOperationParameters] = useState<
+      Record<string, number | string | boolean>
+   >({});
 
    const handleImageLoad = useCallback((imageUrl: string) => {
       setOriginalImage(imageUrl);
@@ -83,7 +126,24 @@ function App() {
       setOriginalImage(null);
       setProcessedImage(null);
       setLastOperation("");
+      setSelectedOperation(null);
+      setOperationParameters({});
    }, []);
+
+   const handleOperationSelect = useCallback(
+      (operation: ProcessingOperation) => {
+         setSelectedOperation(operation);
+         setOperationParameters(operation.parameters || {});
+      },
+      []
+   );
+
+   const handleParametersChange = useCallback(
+      (parameters: Record<string, number | string | boolean>) => {
+         setOperationParameters(parameters);
+      },
+      []
+   );
 
    const processImage = useCallback(
       async (operation: ProcessingOperation) => {
@@ -140,10 +200,40 @@ function App() {
       [originalImage]
    );
 
+   const executeOperation = useCallback(() => {
+      if (selectedOperation) {
+         const operationWithParams = {
+            ...selectedOperation,
+            parameters: operationParameters,
+         };
+         processImage(operationWithParams);
+         setSelectedOperation(null);
+      }
+   }, [selectedOperation, operationParameters, processImage]);
+
    return (
       <div className="min-h-screen bg-background flex relative">
          {/* Sidebar Navigation - Only show when image is loaded */}
-         {originalImage && <Sidebar onOperationSelect={processImage} />}
+         {originalImage && (
+            <Sidebar onOperationSelect={handleOperationSelect} />
+         )}
+
+         {/* Operation Parameters Panel - Show when operation is selected */}
+         {selectedOperation && (
+            <div className="w-80 border-r bg-background p-4">
+               <OperationParameters
+                  operation={selectedOperation}
+                  onParametersChange={handleParametersChange}
+                  onExecute={executeOperation}
+               />
+               <button
+                  onClick={() => setSelectedOperation(null)}
+                  className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+               >
+                  Cancel
+               </button>
+            </div>
+         )}
 
          {/* Main Content */}
          <div className="flex-1 flex flex-col">

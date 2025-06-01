@@ -749,14 +749,8 @@ export const SymmetricPaddingIcon: React.FC<IconProps> = ({
          fillOpacity="0.3"
       />
       <rect x="2" y="2" width="20" height="20" rx="2" />
-      <path
-         d="M8 2v6M16 2v6M8 16v6M16 16v6"
-         strokeWidth="1"
-      />
-      <path
-         d="M2 8h6M16 8h6M2 16h6M16 16h6"
-         strokeWidth="1"
-      />
+      <path d="M8 2v6M16 2v6M8 16v6M16 16v6" strokeWidth="1" />
+      <path d="M2 8h6M16 8h6M2 16h6M16 16h6" strokeWidth="1" />
       <path
          d="M4 4l4 4M16 4l4 4M4 16l4 4M16 16l4 4"
          strokeWidth="1"
