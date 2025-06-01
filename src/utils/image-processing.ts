@@ -106,8 +106,6 @@ export class ImageProcessor {
       const { width, height } = imageData;
 
       // Simple box blur approximation
-      const size = radius * 2 + 1;
-
       for (let y = 0; y < height; y++) {
          for (let x = 0; x < width; x++) {
             let r = 0,
@@ -311,5 +309,186 @@ export class ImageProcessor {
          width: imageData.width,
          height: imageData.height,
       };
+   }
+
+   // Padding Operations
+   static zeroPadding(imageData: ImageData, paddingSize: number = 10): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      // Fill with zeros (black padding)
+      newData.fill(0);
+
+      // Copy original image to center
+      for (let y = 0; y < height; y++) {
+         for (let x = 0; x < width; x++) {
+            const srcIdx = (y * width + x) * 4;
+            const dstIdx = ((y + paddingSize) * newWidth + (x + paddingSize)) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
+   }
+
+   static replicatePadding(imageData: ImageData, paddingSize: number = 10): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      for (let y = 0; y < newHeight; y++) {
+         for (let x = 0; x < newWidth; x++) {
+            // Map coordinates to original image with edge replication
+            const srcX = Math.min(Math.max(x - paddingSize, 0), width - 1);
+            const srcY = Math.min(Math.max(y - paddingSize, 0), height - 1);
+            
+            const srcIdx = (srcY * width + srcX) * 4;
+            const dstIdx = (y * newWidth + x) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
+   }
+
+   static reflectPadding(imageData: ImageData, paddingSize: number = 10): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      for (let y = 0; y < newHeight; y++) {
+         for (let x = 0; x < newWidth; x++) {
+            let srcX = x - paddingSize;
+            let srcY = y - paddingSize;
+            
+            // Reflect coordinates (excluding edge)
+            if (srcX < 0) srcX = -srcX - 1;
+            else if (srcX >= width) srcX = 2 * width - srcX - 1;
+            
+            if (srcY < 0) srcY = -srcY - 1;
+            else if (srcY >= height) srcY = 2 * height - srcY - 1;
+            
+            // Clamp to valid range
+            srcX = Math.min(Math.max(srcX, 0), width - 1);
+            srcY = Math.min(Math.max(srcY, 0), height - 1);
+            
+            const srcIdx = (srcY * width + srcX) * 4;
+            const dstIdx = (y * newWidth + x) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
+   }
+
+   static symmetricPadding(imageData: ImageData, paddingSize: number = 10): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      for (let y = 0; y < newHeight; y++) {
+         for (let x = 0; x < newWidth; x++) {
+            let srcX = x - paddingSize;
+            let srcY = y - paddingSize;
+            
+            // Symmetric reflection (including edge)
+            if (srcX < 0) srcX = -srcX;
+            else if (srcX >= width) srcX = 2 * width - srcX - 2;
+            
+            if (srcY < 0) srcY = -srcY;
+            else if (srcY >= height) srcY = 2 * height - srcY - 2;
+            
+            // Clamp to valid range
+            srcX = Math.min(Math.max(srcX, 0), width - 1);
+            srcY = Math.min(Math.max(srcY, 0), height - 1);
+            
+            const srcIdx = (srcY * width + srcX) * 4;
+            const dstIdx = (y * newWidth + x) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
+   }
+
+   static wrapPadding(imageData: ImageData, paddingSize: number = 10): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      for (let y = 0; y < newHeight; y++) {
+         for (let x = 0; x < newWidth; x++) {
+            let srcX = x - paddingSize;
+            let srcY = y - paddingSize;
+            
+            // Wrap coordinates (circular padding)
+            while (srcX < 0) srcX += width;
+            while (srcX >= width) srcX -= width;
+            while (srcY < 0) srcY += height;
+            while (srcY >= height) srcY -= height;
+            
+            const srcIdx = (srcY * width + srcX) * 4;
+            const dstIdx = (y * newWidth + x) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
+   }
+
+   static customPadding(imageData: ImageData, paddingSize: number = 10, customValue: number = 128): ImageData {
+      const { width, height, data } = imageData;
+      const newWidth = width + 2 * paddingSize;
+      const newHeight = height + 2 * paddingSize;
+      const newData = new Uint8ClampedArray(newWidth * newHeight * 4);
+
+      // Fill with custom value
+      for (let i = 0; i < newData.length; i += 4) {
+         newData[i] = customValue;     // R
+         newData[i + 1] = customValue; // G
+         newData[i + 2] = customValue; // B
+         newData[i + 3] = 255;         // A
+      }
+
+      // Copy original image to center
+      for (let y = 0; y < height; y++) {
+         for (let x = 0; x < width; x++) {
+            const srcIdx = (y * width + x) * 4;
+            const dstIdx = ((y + paddingSize) * newWidth + (x + paddingSize)) * 4;
+            
+            newData[dstIdx] = data[srcIdx];     // R
+            newData[dstIdx + 1] = data[srcIdx + 1]; // G
+            newData[dstIdx + 2] = data[srcIdx + 2]; // B
+            newData[dstIdx + 3] = data[srcIdx + 3]; // A
+         }
+      }
+
+      return { data: newData, width: newWidth, height: newHeight };
    }
 }

@@ -10,7 +10,7 @@ export interface ProcessingOperation {
    category: string;
    subcategory?: string;
    description: string;
-   parameters?: Record<string, any>;
+   parameters?: Record<string, number | string | boolean>;
 }
 
 export interface ProcessingCategory {
@@ -291,6 +291,54 @@ export const PROCESSING_CATEGORIES: ProcessingCategory[] = [
             name: "3D Visualization",
             category: "visualization",
             description: "Create 3D representations",
+         },
+      ],
+   },
+   {
+      id: "padding",
+      name: "Image Padding Operations",
+      operations: [
+         {
+            id: "zero-padding",
+            name: "Zero Padding",
+            category: "padding",
+            description: "Constant padding with value 0 - most common in deep learning",
+            parameters: { paddingSize: 10 },
+         },
+         {
+            id: "replicate-padding",
+            name: "Replicate Padding",
+            category: "padding",
+            description: "Edge padding - extends edge values outward",
+            parameters: { paddingSize: 10 },
+         },
+         {
+            id: "reflect-padding",
+            name: "Reflect Padding",
+            category: "padding",
+            description: "Mirrors image at border (excluding edge)",
+            parameters: { paddingSize: 10 },
+         },
+         {
+            id: "symmetric-padding",
+            name: "Symmetric Padding",
+            category: "padding",
+            description: "Mirrors image including edge pixel (Reflect_101)",
+            parameters: { paddingSize: 10 },
+         },
+         {
+            id: "wrap-padding",
+            name: "Wrap Padding",
+            category: "padding",
+            description: "Circular padding - wraps image values from opposite edge",
+            parameters: { paddingSize: 10 },
+         },
+         {
+            id: "custom-padding",
+            name: "Custom Padding",
+            category: "padding",
+            description: "Custom value padding for specialized cases",
+            parameters: { paddingSize: 10, customValue: 128 },
          },
       ],
    },

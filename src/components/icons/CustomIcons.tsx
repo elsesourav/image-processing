@@ -539,3 +539,27 @@ export const AnalysisIcon: React.FC<IconProps> = ({
       <path d="M6 12l6 2 6-2" />
    </svg>
 );
+
+// Padding Icon
+export const PaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect x="6" y="6" width="12" height="12" fill="currentColor" fillOpacity="0.2" />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path d="M6 2v4M18 2v4M6 18v4M18 18v4" />
+      <path d="M2 6h4M2 18h4M18 6h4M18 18h4" />
+   </svg>
+);

@@ -2,41 +2,63 @@ import { useCallback, useState } from "react";
 import { ImageUpload } from "./components/ImageUpload";
 import { ImageViewer } from "./components/ImageViewer";
 import { Sidebar } from "./components/Sidebar";
-import { type ProcessingOperation } from "./types";
+import { type ImageData, type ProcessingOperation } from "./types";
 import { ImageProcessor } from "./utils/image-processing";
 
 // Operation function mapping for faster lookup - moved outside component for performance
 const operationFunctions = {
-   "contrast": (imageData: any, operation: ProcessingOperation) => 
-      ImageProcessor.adjustContrast(imageData, operation.parameters?.factor || 1.5),
-   
-   "histogram": (imageData: any) => 
+   contrast: (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.adjustContrast(
+         imageData,
+         typeof operation.parameters?.factor === 'number' ? operation.parameters.factor : 1.5
+      ),
+
+   histogram: (imageData: ImageData) =>
       ImageProcessor.histogramEqualization(imageData),
-   
-   "noise-removal": (imageData: any) => 
+
+   "noise-removal": (imageData: ImageData) =>
       ImageProcessor.gaussianBlur(imageData, 1),
-   
-   "sharpening": (imageData: any) => 
-      ImageProcessor.sharpen(imageData),
-   
-   "edge-detection": (imageData: any) => 
+
+   sharpening: (imageData: ImageData) => ImageProcessor.sharpen(imageData),
+
+   "edge-detection": (imageData: ImageData) =>
       ImageProcessor.sobelEdgeDetection(imageData),
-   
-   "thresholding": (imageData: any) => 
+
+   thresholding: (imageData: ImageData) =>
       ImageProcessor.threshold(imageData, 128),
-   
-   "color-space": (imageData: any) => 
+
+   "color-space": (imageData: ImageData) =>
       ImageProcessor.rgbToGrayscale(imageData),
-   
+
    // Add more operations as they become available
-   "deblurring": (imageData: any) => 
-      ImageProcessor.invert(imageData), // placeholder
-   
-   "denoising": (imageData: any) => 
-      ImageProcessor.invert(imageData), // placeholder
-   
-   "inpainting": (imageData: any) => 
-      ImageProcessor.invert(imageData), // placeholder
+   deblurring: (imageData: ImageData) => ImageProcessor.invert(imageData), // placeholder
+
+   denoising: (imageData: ImageData) => ImageProcessor.invert(imageData), // placeholder
+
+   inpainting: (imageData: ImageData) => ImageProcessor.invert(imageData), // placeholder
+
+   // Padding operations
+   "zero-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.zeroPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+
+   "replicate-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.replicatePadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+
+   "reflect-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.reflectPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+
+   "symmetric-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.symmetricPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+
+   "wrap-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.wrapPadding(imageData, typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10),
+
+   "custom-padding": (imageData: ImageData, operation: ProcessingOperation) =>
+      ImageProcessor.customPadding(
+         imageData,
+         typeof operation.parameters?.paddingSize === 'number' ? operation.parameters.paddingSize : 10,
+         typeof operation.parameters?.customValue === 'number' ? operation.parameters.customValue : 128
+      ),
 };
 
 function App() {
@@ -83,10 +105,13 @@ function App() {
 
                // Get image data
                const imageData = ImageProcessor.createImageData(tempCanvas);
-               
+
                // Apply the selected operation using function lookup
-               const operationFunction = operationFunctions[operation.id as keyof typeof operationFunctions];
-               const processedData = operationFunction 
+               const operationFunction =
+                  operationFunctions[
+                     operation.id as keyof typeof operationFunctions
+                  ];
+               const processedData = operationFunction
                   ? operationFunction(imageData, operation)
                   : ImageProcessor.invert(imageData); // fallback for unimplemented operations
 

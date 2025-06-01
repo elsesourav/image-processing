@@ -610,3 +610,263 @@ export const ColorProcessingIcon: React.FC<IconProps> = ({
       <path d="M9 18h6" />
    </svg>
 );
+
+// Padding Operations Icons
+export const ZeroPaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="6"
+         y="6"
+         width="12"
+         height="12"
+         fill="currentColor"
+         fillOpacity="0.2"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <text x="4" y="5" fontSize="3" fill="currentColor">
+         0
+      </text>
+      <text x="19" y="5" fontSize="3" fill="currentColor">
+         0
+      </text>
+      <text x="4" y="21" fontSize="3" fill="currentColor">
+         0
+      </text>
+      <text x="19" y="21" fontSize="3" fill="currentColor">
+         0
+      </text>
+   </svg>
+);
+
+export const ReplicatePaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="8"
+         y="8"
+         width="8"
+         height="8"
+         fill="currentColor"
+         fillOpacity="0.3"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path d="M8 2v6" strokeDasharray="2 2" />
+      <path d="M16 2v6" strokeDasharray="2 2" />
+      <path d="M8 16v6" strokeDasharray="2 2" />
+      <path d="M16 16v6" strokeDasharray="2 2" />
+      <path d="M2 8h6" strokeDasharray="2 2" />
+      <path d="M16 8h6" strokeDasharray="2 2" />
+      <path d="M2 16h6" strokeDasharray="2 2" />
+      <path d="M16 16h6" strokeDasharray="2 2" />
+   </svg>
+);
+
+export const ReflectPaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="8"
+         y="8"
+         width="8"
+         height="8"
+         fill="currentColor"
+         fillOpacity="0.3"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path d="M8 6l8 0" strokeWidth="1" opacity="0.6" />
+      <path d="M8 18l8 0" strokeWidth="1" opacity="0.6" />
+      <path d="M6 8l0 8" strokeWidth="1" opacity="0.6" />
+      <path d="M18 8l0 8" strokeWidth="1" opacity="0.6" />
+      <circle cx="8" cy="8" r="1" fill="currentColor" />
+      <circle cx="16" cy="8" r="1" fill="currentColor" />
+      <circle cx="8" cy="16" r="1" fill="currentColor" />
+      <circle cx="16" cy="16" r="1" fill="currentColor" />
+   </svg>
+);
+
+export const SymmetricPaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="8"
+         y="8"
+         width="8"
+         height="8"
+         fill="currentColor"
+         fillOpacity="0.3"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path
+         d="M8 2v6M16 2v6M8 16v6M16 16v6"
+         strokeWidth="1"
+      />
+      <path
+         d="M2 8h6M16 8h6M2 16h6M16 16h6"
+         strokeWidth="1"
+      />
+      <path
+         d="M4 4l4 4M16 4l4 4M4 16l4 4M16 16l4 4"
+         strokeWidth="1"
+         opacity="0.5"
+      />
+   </svg>
+);
+
+export const WrapPaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="8"
+         y="8"
+         width="8"
+         height="8"
+         fill="currentColor"
+         fillOpacity="0.3"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path d="M8 2a6 6 0 0 0 0 6" strokeWidth="1" />
+      <path d="M16 2a6 6 0 0 1 0 6" strokeWidth="1" />
+      <path d="M8 22a6 6 0 0 1 0-6" strokeWidth="1" />
+      <path d="M16 22a6 6 0 0 0 0-6" strokeWidth="1" />
+      <path d="M2 8a6 6 0 0 0 6 0" strokeWidth="1" />
+      <path d="M2 16a6 6 0 0 1 6 0" strokeWidth="1" />
+      <path d="M22 8a6 6 0 0 1-6 0" strokeWidth="1" />
+      <path d="M22 16a6 6 0 0 0-6 0" strokeWidth="1" />
+   </svg>
+);
+
+export const CustomPaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="8"
+         y="8"
+         width="8"
+         height="8"
+         fill="currentColor"
+         fillOpacity="0.3"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <circle cx="4" cy="4" r="1" fill="currentColor" />
+      <circle cx="20" cy="4" r="1" fill="currentColor" />
+      <circle cx="4" cy="20" r="1" fill="currentColor" />
+      <circle cx="20" cy="20" r="1" fill="currentColor" />
+      <path
+         d="M8 4h8M8 20h8M4 8v8M20 8v8"
+         strokeDasharray="3 1"
+         strokeWidth="1"
+      />
+      <text x="11" y="5" fontSize="2" fill="currentColor">
+         ?
+      </text>
+   </svg>
+);
+
+export const PaddingIcon: React.FC<IconProps> = ({
+   size = 24,
+   className = "",
+}) => (
+   <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+   >
+      <rect
+         x="6"
+         y="6"
+         width="12"
+         height="12"
+         fill="currentColor"
+         fillOpacity="0.2"
+      />
+      <rect x="2" y="2" width="20" height="20" rx="2" />
+      <path d="M6 2v4M18 2v4M6 18v4M18 18v4" />
+      <path d="M2 6h4M2 18h4M18 6h4M18 18h4" />
+   </svg>
+);

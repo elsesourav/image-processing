@@ -21,6 +21,7 @@ import {
    FeatureExtractionIcon,
    HistogramIcon,
    NoiseRemovalIcon,
+   PaddingIcon,
    PatternRecognitionIcon,
    PreprocessingIcon,
    SegmentationIcon,
@@ -35,6 +36,7 @@ import {
    ColorCorrectionIcon,
    ColorProcessingIcon,
    CompressionIcon,
+   CustomPaddingIcon,
    DeblurringIcon,
    DenoisingIcon as DenoisingWorkIcon,
    FalseColoringIcon,
@@ -45,12 +47,17 @@ import {
    OpeningIcon,
    PseudocoloringIcon,
    RecognitionIcon,
+   ReflectPaddingIcon,
    RegionRepresentationIcon,
    RegionSegmentationIcon,
+   ReplicatePaddingIcon,
    RepresentationIcon,
+   SymmetricPaddingIcon,
    TemplateMatchingIcon,
    ThreeDVisualizationIcon,
    VisualizationIcon,
+   WrapPaddingIcon,
+   ZeroPaddingIcon,
 } from "./icons/WorkIcons";
 
 interface SidebarProps {
@@ -78,6 +85,7 @@ const categoryIconMap = {
    recognition: RecognitionIcon,
    compression: CompressionIcon,
    visualization: VisualizationIcon,
+   padding: PaddingIcon,
    default: DefaultOperationIcon,
 };
 
@@ -121,6 +129,12 @@ const operationIconMap = {
    measurements: PatternRecognitionIcon,
    pseudocoloring: PseudocoloringIcon,
    "3d-visualization": ThreeDVisualizationIcon,
+   "zero-padding": ZeroPaddingIcon,
+   "replicate-padding": ReplicatePaddingIcon,
+   "reflect-padding": ReflectPaddingIcon,
+   "symmetric-padding": SymmetricPaddingIcon,
+   "wrap-padding": WrapPaddingIcon,
+   "custom-padding": CustomPaddingIcon,
    default: DefaultOperationIcon,
 };
 
@@ -297,7 +311,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ onOperationSelect }) => {
-   const [isOpen, setIsOpen] = useState(true);
+   const [isOpen, setIsOpen] = useState(false);
 
    const toggleSidebar = () => {
       setIsOpen(!isOpen);
