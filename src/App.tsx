@@ -102,9 +102,12 @@ const operationFunctions = {
 };
 
 function App() {
-   const [originalImage, setOriginalImage] = useState<string | null>(null);
+   const [currentInputImage, setCurrentInputImage] = useState<string | null>(
+      null
+   ); // Current working image
    const [processedImage, setProcessedImage] = useState<string | null>(null);
    const [lastOperation, setLastOperation] = useState<string>("");
+   const [hasSidebarOperation, setHasSidebarOperation] = useState(false); // Track if processed image is from sidebar operation
    const [selectedOperation, setSelectedOperation] =
       useState<ProcessingOperation | null>(null);
    const [operationParameters, setOperationParameters] = useState<
@@ -115,20 +118,9 @@ function App() {
    const [maxPixelRatio, setMaxPixelRatio] = useState<number | "auto">(100);
    const [smoothEdges, setSmoothEdges] = useState(false);
    const [compareMode, setCompareMode] = useState(false);
+   const [showPixelOutline, setShowPixelOutline] = useState(false);
 
    // Region selection state
-   const [inputRegion, setInputRegion] = useState<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-   } | null>(null);
-   const [outputRegion, setOutputRegion] = useState<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-   } | null>(null);
    const [activeRegion, setActiveRegion] = useState<{
       x: number;
       y: number;
@@ -137,33 +129,28 @@ function App() {
    } | null>(null);
 
    const handleImageLoad = useCallback((imageUrl: string) => {
-      setOriginalImage(imageUrl);
-      setProcessedImage(imageUrl); // Initially, processed image is same as original
+      setCurrentInputImage(imageUrl); // Set as current working image
+      setProcessedImage(imageUrl); // Initially, processed image is same as input
+      setHasSidebarOperation(false); // No sidebar operation yet
       setLastOperation("Original Image");
    }, []);
 
    const handleLoadDemo = useCallback(() => {
       const demoImageUrl = "/demo-image.svg";
-      setOriginalImage(demoImageUrl);
+      setCurrentInputImage(demoImageUrl);
       setProcessedImage(demoImageUrl);
+      setHasSidebarOperation(false);
       setLastOperation("Demo Image Loaded");
    }, []);
 
    const handleResetImage = useCallback(() => {
-      setOriginalImage(null);
+      setCurrentInputImage(null);
       setProcessedImage(null);
+      setHasSidebarOperation(false);
       setLastOperation("");
       setSelectedOperation(null);
       setOperationParameters({});
    }, []);
-
-   const handleOperationSelect = useCallback(
-      (operation: ProcessingOperation) => {
-         setSelectedOperation(operation);
-         setOperationParameters(operation.parameters || {});
-      },
-      []
-   );
 
    const handleParametersChange = useCallback(
       (parameters: Record<string, number | string | boolean>) => {
@@ -174,13 +161,13 @@ function App() {
 
    const processImage = useCallback(
       async (operation: ProcessingOperation) => {
-         if (!originalImage) {
+         if (!currentInputImage) {
             alert("Please load an image first");
             return;
          }
 
          try {
-            // Create a temporary canvas to load the original image
+            // Create a temporary canvas to load the current input image
             const tempCanvas = document.createElement("canvas");
             const tempCtx = tempCanvas.getContext("2d")!;
             const img = new Image();
@@ -213,18 +200,19 @@ function App() {
                   if (blob) {
                      const processedUrl = URL.createObjectURL(blob);
                      setProcessedImage(processedUrl);
+                     setHasSidebarOperation(true); // Mark that we have a sidebar operation result
                      setLastOperation(operation.name);
                   }
                });
             };
 
-            img.src = originalImage;
+            img.src = currentInputImage;
          } catch (error) {
             console.error("Error processing image:", error);
             alert("Error processing image. Please try again.");
          }
       },
-      [originalImage]
+      [currentInputImage]
    );
 
    const executeOperation = useCallback(() => {
@@ -238,22 +226,54 @@ function App() {
       }
    }, [selectedOperation, operationParameters, processImage]);
 
+   // Operation selection handler
+   const handleOperationSelect = useCallback(
+      (operation: ProcessingOperation) => {
+         // Always close the current parameter section first
+         setSelectedOperation(null);
+         setOperationParameters({});
+
+         // Check if the operation needs parameters by checking both predefined parameters
+         // and operations that require default parameters
+         const hasPreDefinedParameters =
+            operation.parameters &&
+            Object.keys(operation.parameters).length > 0;
+
+         const needsDefaultParameters =
+            operation.id.includes("padding") || operation.id === "contrast";
+
+         const hasParameters =
+            hasPreDefinedParameters || needsDefaultParameters;
+
+         if (hasParameters) {
+            // Show parameter inputs in main content area
+            setSelectedOperation(operation);
+         } else {
+            // Execute immediately if no parameters needed
+            processImage(operation);
+         }
+      },
+      [processImage]
+   );
+
    // Toolbar handlers
    const handleSave = useCallback(() => {
-      if (!processedImage) {
-         alert("No processed image to save");
+      if (!processedImage || !hasSidebarOperation) {
+         alert("No sidebar operation result to apply");
          return;
       }
 
-      // Apply the processed image back to the original image
-      setOriginalImage(processedImage);
-      setLastOperation("Saved - Applied to Original");
+      // Apply the processed image as the new current input image (overwrite)
+      setCurrentInputImage(processedImage);
+      setHasSidebarOperation(false); // Reset since we've applied the result
+      setLastOperation("Applied - Saved to Input");
 
       // Optionally show a success message
-      console.log("Processed image applied to original successfully");
-   }, [processedImage]);
+      console.log("Processed image applied to input image successfully");
+   }, [processedImage, hasSidebarOperation]);
 
    const handleScaleChange = useCallback((scale: number | "auto") => {
+      // Toolbar inputs auto-apply immediately - no need to reset to original
       setMaxPixelRatio(scale);
    }, []);
 
@@ -265,10 +285,12 @@ function App() {
       setCompareMode(enabled);
       // Clear regions when toggling compare mode
       if (!enabled) {
-         setInputRegion(null);
-         setOutputRegion(null);
          setActiveRegion(null);
       }
+   }, []);
+
+   const handlePixelOutlineToggle = useCallback((enabled: boolean) => {
+      setShowPixelOutline(enabled);
    }, []);
 
    // Region selection handlers
@@ -276,7 +298,6 @@ function App() {
       (
          region: { x: number; y: number; width: number; height: number } | null
       ) => {
-         setInputRegion(region);
          setActiveRegion(region); // Use input region as active when selected
       },
       []
@@ -286,7 +307,6 @@ function App() {
       (
          region: { x: number; y: number; width: number; height: number } | null
       ) => {
-         setOutputRegion(region);
          setActiveRegion(region); // Use output region as active when selected
       },
       []
@@ -294,47 +314,16 @@ function App() {
 
    return (
       <div className="min-h-screen bg-background flex flex-col relative">
-         {/* Top Toolbar - Only show when image is loaded */}
-         {originalImage && (
-            <TopToolbar
-               onSave={handleSave}
-               onScaleChange={handleScaleChange}
-               onSmoothEdgesToggle={handleSmoothEdgesToggle}
-               onCompareToggle={handleCompareToggle}
-               maxPixelRatio={maxPixelRatio}
-               smoothEdges={smoothEdges}
-               compareMode={compareMode}
-               disabled={!processedImage}
-            />
-         )}
-
          {/* Main Content Area */}
          <div className="flex-1 flex relative">
             {/* Sidebar Navigation - Only show when image is loaded */}
-            {originalImage && (
+            {currentInputImage && (
                <Sidebar onOperationSelect={handleOperationSelect} />
-            )}
-
-            {/* Operation Parameters Panel - Show when operation is selected */}
-            {selectedOperation && (
-               <div className="w-80 border-r bg-background p-4">
-                  <OperationParameters
-                     operation={selectedOperation}
-                     onParametersChange={handleParametersChange}
-                     onExecute={executeOperation}
-                  />
-                  <button
-                     onClick={() => setSelectedOperation(null)}
-                     className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                     Cancel
-                  </button>
-               </div>
             )}
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
-               {originalImage ? (
+               {currentInputImage ? (
                   // When image is loaded - show image viewers and status
                   <>
                      {/* Status Bar with Change Image Button */}
@@ -355,7 +344,34 @@ function App() {
                         >
                            Change Image
                         </button>
-                     </div>{" "}
+                     </div>
+                     {/* Top Toolbar - Only show when image is loaded */}
+                     {currentInputImage && (
+                        <TopToolbar
+                           onSave={handleSave}
+                           onScaleChange={handleScaleChange}
+                           onSmoothEdgesToggle={handleSmoothEdgesToggle}
+                           onCompareToggle={handleCompareToggle}
+                           onPixelOutlineToggle={handlePixelOutlineToggle}
+                           maxPixelRatio={maxPixelRatio}
+                           smoothEdges={smoothEdges}
+                           compareMode={compareMode}
+                           showPixelOutline={showPixelOutline}
+                           disabled={!hasSidebarOperation}
+                           showApplyButton={hasSidebarOperation}
+                        />
+                     )}
+                     {/* Show operation parameters if operation is selected */}
+                     {selectedOperation && (
+                        <div className="p-4 bg-blue-50 border-b">
+                           <OperationParameters
+                              operation={selectedOperation}
+                              onParametersChange={handleParametersChange}
+                              onExecute={executeOperation}
+                              onClose={() => setSelectedOperation(null)}
+                           />
+                        </div>
+                     )}{" "}
                      {/* Image Viewers */}
                      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
                         {/* Top Section: Input | Output (or merged comparison) */}
@@ -363,20 +379,22 @@ function App() {
                            {compareMode ? (
                               // Compare Mode - Merged view with comparison line
                               <ComparisonViewer
-                                 originalImageUrl={originalImage}
+                                 originalImageUrl={currentInputImage}
                                  processedImageUrl={processedImage}
                                  maxPixelRatio={maxPixelRatio}
                                  smoothEdges={smoothEdges}
+                                 showPixelOutline={showPixelOutline}
                                  className="h-full"
                               />
                            ) : (
                               // Normal Mode - Side by side input | output
                               <div className="flex gap-4 h-full">
                                  <ImageViewer
-                                    imageUrl={originalImage}
-                                    title="Original Image (Input)"
+                                    imageUrl={currentInputImage}
+                                    title="Current Input Image"
                                     maxPixelRatio={maxPixelRatio}
                                     smoothEdges={smoothEdges}
+                                    showPixelOutline={showPixelOutline}
                                     fitToContainer={true}
                                     enableRegionSelection={true}
                                     onRegionSelect={handleInputRegionSelect}
@@ -387,6 +405,7 @@ function App() {
                                     title="Processed Image (Output)"
                                     maxPixelRatio={maxPixelRatio}
                                     smoothEdges={smoothEdges}
+                                    showPixelOutline={showPixelOutline}
                                     fitToContainer={true}
                                     enableRegionSelection={true}
                                     onRegionSelect={handleOutputRegionSelect}
@@ -400,10 +419,11 @@ function App() {
                         {activeRegion && (
                            <div className="h-1/2">
                               <ComparisonViewer
-                                 originalImageUrl={originalImage}
+                                 originalImageUrl={currentInputImage}
                                  processedImageUrl={processedImage}
                                  maxPixelRatio={maxPixelRatio}
                                  smoothEdges={smoothEdges}
+                                 showPixelOutline={showPixelOutline}
                                  selectedRegion={activeRegion}
                                  showZoomControls={false}
                                  className="h-full"

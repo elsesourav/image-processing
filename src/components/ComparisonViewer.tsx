@@ -6,6 +6,7 @@ interface ComparisonViewerProps {
    processedImageUrl: string | null;
    maxPixelRatio: number | "auto";
    smoothEdges: boolean;
+   showPixelOutline: boolean;
    className?: string;
    selectedRegion?: {
       x: number;
@@ -21,6 +22,7 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
    processedImageUrl,
    maxPixelRatio,
    smoothEdges,
+   showPixelOutline,
    className = "",
    selectedRegion,
 }) => {
@@ -36,6 +38,39 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
    );
    const [processedImage, setProcessedImage] =
       useState<HTMLImageElement | null>(null);
+
+   // Calculate optimal display size for the canvas
+   const getDisplaySize = useCallback(() => {
+      const container = containerRef.current;
+      if (!container || !originalImage) return { width: 0, height: 0 };
+
+      // Get available container space (accounting for padding and other elements)
+      const containerRect = container.getBoundingClientRect();
+      const availableWidth = containerRect.width - 32; // Account for padding
+      const availableHeight = containerRect.height - 80; // Account for header/footer
+
+      if (availableWidth <= 0 || availableHeight <= 0) {
+         return { width: 0, height: 0 };
+      }
+
+      const imageAspect =
+         originalImage.naturalWidth / originalImage.naturalHeight;
+      const containerAspect = availableWidth / availableHeight;
+
+      let displayWidth, displayHeight;
+
+      if (imageAspect > containerAspect) {
+         // Image is wider - fit to width
+         displayWidth = availableWidth;
+         displayHeight = availableWidth / imageAspect;
+      } else {
+         // Image is taller - fit to height
+         displayHeight = availableHeight;
+         displayWidth = availableHeight * imageAspect;
+      }
+
+      return { width: displayWidth, height: displayHeight };
+   }, [originalImage]);
 
    const drawRegionOrComparison = useCallback(() => {
       const canvas = canvasRef.current;
@@ -82,28 +117,57 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             scaledWidth,
             scaledHeight
          );
+
+         // Draw pixel outline if enabled for selected region
+         if (
+            showPixelOutline &&
+            typeof maxPixelRatio === "number" &&
+            maxPixelRatio < 500
+         ) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([]);
+
+            // Only draw pixel grid if pixels are large enough to be visible
+            if (pixelRatio >= 2) {
+               // Draw vertical lines
+               for (let x = 0; x <= selectedRegion.width; x++) {
+                  const scaledX = x * pixelRatio;
+                  ctx.beginPath();
+                  ctx.moveTo(scaledX, 0);
+                  ctx.lineTo(scaledX, scaledHeight);
+                  ctx.stroke();
+               }
+
+               // Draw horizontal lines
+               for (let y = 0; y <= selectedRegion.height; y++) {
+                  const scaledY = y * pixelRatio;
+                  ctx.beginPath();
+                  ctx.moveTo(0, scaledY);
+                  ctx.lineTo(scaledWidth, scaledY);
+                  ctx.stroke();
+               }
+            }
+
+            ctx.restore();
+         }
       } else {
          // Show full comparison with divider
-         const containerRect = container.getBoundingClientRect();
-         const containerWidth = containerRect.width - 32;
-         const containerHeight = containerRect.height - 80;
+         // Set canvas to actual image size for maximum quality
+         canvas.width = originalImage.naturalWidth;
+         canvas.height = originalImage.naturalHeight;
 
-         const scaleX = containerWidth / originalImage.naturalWidth;
-         const scaleY = containerHeight / originalImage.naturalHeight;
-         const scale = Math.min(scaleX, scaleY, 1);
+         const canvasWidth = canvas.width;
+         const canvasHeight = canvas.height;
 
-         const scaledWidth = originalImage.naturalWidth * scale;
-         const scaledHeight = originalImage.naturalHeight * scale;
-         const offsetX = (containerWidth - scaledWidth) / 2;
-         const offsetY = (containerHeight - scaledHeight) / 2;
-
-         // Calculate divider position in pixels
-         const dividerX = (dividerPosition / 100) * scaledWidth + offsetX;
+         // Calculate divider position in pixels on the canvas
+         const dividerX = (dividerPosition / 100) * canvasWidth;
 
          // Draw original image (left side)
          ctx.save();
          ctx.beginPath();
-         ctx.rect(offsetX, offsetY, dividerX - offsetX, scaledHeight);
+         ctx.rect(0, 0, dividerX, canvasHeight);
          ctx.clip();
          ctx.drawImage(
             originalImage,
@@ -111,22 +175,17 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             0,
             originalImage.naturalWidth,
             originalImage.naturalHeight,
-            offsetX,
-            offsetY,
-            scaledWidth,
-            scaledHeight
+            0,
+            0,
+            canvasWidth,
+            canvasHeight
          );
          ctx.restore();
 
          // Draw processed image (right side)
          ctx.save();
          ctx.beginPath();
-         ctx.rect(
-            dividerX,
-            offsetY,
-            offsetX + scaledWidth - dividerX,
-            scaledHeight
-         );
+         ctx.rect(dividerX, 0, canvasWidth - dividerX, canvasHeight);
          ctx.clip();
          ctx.drawImage(
             processedImage,
@@ -134,10 +193,10 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             0,
             processedImage.naturalWidth,
             processedImage.naturalHeight,
-            offsetX,
-            offsetY,
-            scaledWidth,
-            scaledHeight
+            0,
+            0,
+            canvasWidth,
+            canvasHeight
          );
          ctx.restore();
 
@@ -145,9 +204,48 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          ctx.strokeStyle = "#ff0000";
          ctx.lineWidth = 2;
          ctx.beginPath();
-         ctx.moveTo(dividerX, offsetY);
-         ctx.lineTo(dividerX, offsetY + scaledHeight);
+         ctx.moveTo(dividerX, 0);
+         ctx.lineTo(dividerX, canvasHeight);
          ctx.stroke();
+
+         // Draw pixel outline if enabled for full comparison
+         if (
+            showPixelOutline &&
+            typeof maxPixelRatio === "number" &&
+            maxPixelRatio < 500
+         ) {
+            ctx.save();
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([]);
+
+            // Calculate current display scale to determine if pixel outline should be visible
+            const displaySize = getDisplaySize();
+            const displayScaleX = displaySize.width / canvasWidth;
+            const displayScaleY = displaySize.height / canvasHeight;
+            const displayScale = Math.min(displayScaleX, displayScaleY);
+
+            // Only draw pixel grid if pixels are large enough to be visible when displayed
+            if (displayScale >= 2) {
+               // Draw vertical lines
+               for (let x = 0; x <= originalImage.naturalWidth; x++) {
+                  ctx.beginPath();
+                  ctx.moveTo(x, 0);
+                  ctx.lineTo(x, canvasHeight);
+                  ctx.stroke();
+               }
+
+               // Draw horizontal lines
+               for (let y = 0; y <= originalImage.naturalHeight; y++) {
+                  ctx.beginPath();
+                  ctx.moveTo(0, y);
+                  ctx.lineTo(canvasWidth, y);
+                  ctx.stroke();
+               }
+            }
+
+            ctx.restore();
+         }
       }
    }, [
       originalImage,
@@ -189,13 +287,23 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          containerRef.current
       ) {
          const canvas = canvasRef.current;
-         const container = containerRef.current;
-         const containerRect = container.getBoundingClientRect();
 
-         canvas.width = containerRect.width - 32;
-         canvas.height = containerRect.height - 80;
+         if (selectedRegion) {
+            // For selected region, set canvas to region size (scaled by maxPixelRatio)
+            let pixelRatio = 1;
+            if (maxPixelRatio !== "auto") {
+               pixelRatio = maxPixelRatio / 100;
+            }
+
+            canvas.width = selectedRegion.width * pixelRatio;
+            canvas.height = selectedRegion.height * pixelRatio;
+         } else {
+            // For full comparison, set canvas to actual image size for maximum quality
+            canvas.width = originalImage.naturalWidth;
+            canvas.height = originalImage.naturalHeight;
+         }
       }
-   }, [originalImage, processedImage]);
+   }, [originalImage, processedImage, selectedRegion, maxPixelRatio]);
 
    useEffect(() => {
       drawRegionOrComparison();
@@ -207,15 +315,30 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
    };
 
    const handleMouseMove = (e: React.MouseEvent) => {
-      if (isDraggingDivider && !selectedRegion) {
-         // Only allow divider dragging when not showing a selected region
+      if (isDraggingDivider && !selectedRegion && containerRef.current) {
          const container = containerRef.current;
-         if (!container) return;
+         const containerRect = container.getBoundingClientRect();
 
-         const rect = container.getBoundingClientRect();
-         const x = e.clientX - rect.left;
-         const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-         setDividerPosition(percentage);
+         // Calculate the actual displayed image bounds within the container
+         const displaySize = getDisplaySize();
+         const containerWidth = containerRect.width - 32; // Account for padding
+         const containerHeight = containerRect.height - 80; // Account for header
+
+         // Calculate image position within container (centered)
+         const offsetX = 16 + (containerWidth - displaySize.width) / 2; // Padding + centering
+
+         // Get mouse position relative to the displayed image
+         const mouseX = e.clientX - containerRect.left;
+         const imageMouseX = mouseX - offsetX;
+
+         // Only update if mouse is within the displayed image bounds
+         if (imageMouseX >= 0 && imageMouseX <= displaySize.width) {
+            const percentage = Math.max(
+               0,
+               Math.min(100, (imageMouseX / displaySize.width) * 100)
+            );
+            setDividerPosition(percentage);
+         }
       }
    };
 
@@ -228,13 +351,24 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          return { display: "none" };
 
       const container = containerRef.current;
-      const rect = container.getBoundingClientRect();
-      const dividerX = (dividerPosition / 100) * rect.width;
+      const containerRect = container.getBoundingClientRect();
+
+      // Calculate the actual displayed image bounds within the container
+      const displaySize = getDisplaySize();
+      const containerWidth = containerRect.width - 32; // Account for padding
+      const containerHeight = containerRect.height - 80; // Account for header
+
+      // Calculate image position within container (centered)
+      const offsetX = 16 + (containerWidth - displaySize.width) / 2; // Padding + centering
+      const offsetY = 40 + (containerHeight - displaySize.height) / 2; // Header + centering
+
+      // Calculate divider position within the displayed image
+      const dividerX = offsetX + (dividerPosition / 100) * displaySize.width;
 
       return {
          left: `${dividerX - 1}px`, // Center the 2px line
-         height: `${rect.height - 80}px`, // Subtract header height
-         top: "80px", // Header height
+         height: `${displaySize.height}px`, // Height of displayed image
+         top: `${offsetY}px`, // Top position of displayed image
       };
    };
 
@@ -264,7 +398,37 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          >
             {originalImageUrl && processedImageUrl ? (
                <>
-                  <canvas ref={canvasRef} className="absolute z-0 inset-0" />
+                  <canvas
+                     ref={canvasRef}
+                     className="absolute z-0 inset-0 m-auto"
+                     style={{
+                        imageRendering: smoothEdges ? "auto" : "pixelated",
+                        ...(() => {
+                           if (selectedRegion) {
+                              // For selected regions, use the scaled region size
+                              let pixelRatio = 1;
+                              if (maxPixelRatio !== "auto") {
+                                 pixelRatio = maxPixelRatio / 100;
+                              }
+                              return {
+                                 width: `${
+                                    selectedRegion.width * pixelRatio
+                                 }px`,
+                                 height: `${
+                                    selectedRegion.height * pixelRatio
+                                 }px`,
+                              };
+                           } else {
+                              // For full comparison, use calculated display size
+                              const displaySize = getDisplaySize();
+                              return {
+                                 width: `${displaySize.width}px`,
+                                 height: `${displaySize.height}px`,
+                              };
+                           }
+                        })(),
+                     }}
+                  />
 
                   {/* Draggable divider handle - only show when not displaying selected region */}
                   {!selectedRegion && (

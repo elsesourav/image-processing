@@ -9,6 +9,7 @@ interface OperationParametersProps {
       parameters: Record<string, number | string | boolean>
    ) => void;
    onExecute: () => void;
+   onClose?: () => void;
    className?: string;
 }
 
@@ -16,6 +17,7 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
    operation,
    onParametersChange,
    onExecute,
+   onClose,
    className,
 }) => {
    const [parameters, setParameters] = useState<
@@ -61,9 +63,9 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
          const color = getColorFromPackedValue(currentValue);
 
          return (
-            <div key={key} className="flex items-center justify-between">
-               <label className="text-sm font-medium text-gray-700">
-                  Padding Color:
+            <div key={key} className="flex items-center gap-1">
+               <label className="text-xs font-medium text-gray-700">
+                  Color:
                </label>
                <ColorPicker
                   initialColor={color}
@@ -80,8 +82,8 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
          typeof value === "number"
       ) {
          return (
-            <div key={key} className="flex items-center justify-between">
-               <label className="text-sm font-medium text-gray-700 capitalize">
+            <div key={key} className="flex items-center gap-1">
+               <label className="text-xs font-medium text-gray-700 capitalize">
                   {key
                      .replace(/([A-Z])/g, " $1")
                      .replace(/^./, (str) => str.toUpperCase())}
@@ -93,7 +95,7 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
                   onChange={(e) =>
                      handleParameterChange(key, parseFloat(e.target.value) || 0)
                   }
-                  className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   min={key === "paddingSize" ? 1 : undefined}
                   max={key === "paddingSize" ? 100 : undefined}
                   step={key === "factor" ? 0.1 : 1}
@@ -105,8 +107,8 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
       // Boolean input for toggle parameters
       if (typeof value === "boolean") {
          return (
-            <div key={key} className="flex items-center justify-between">
-               <label className="text-sm font-medium text-gray-700 capitalize">
+            <div key={key} className="flex items-center gap-1">
+               <label className="text-xs font-medium text-gray-700 capitalize">
                   {key
                      .replace(/([A-Z])/g, " $1")
                      .replace(/^./, (str) => str.toUpperCase())}
@@ -116,7 +118,7 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
                   type="checkbox"
                   checked={value}
                   onChange={(e) => handleParameterChange(key, e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                />
             </div>
          );
@@ -124,8 +126,8 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
 
       // String input for text parameters
       return (
-         <div key={key} className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700 capitalize">
+         <div key={key} className="flex items-center gap-1">
+            <label className="text-xs font-medium text-gray-700 capitalize">
                {key
                   .replace(/([A-Z])/g, " $1")
                   .replace(/^./, (str) => str.toUpperCase())}
@@ -135,7 +137,7 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
                type="text"
                value={value as string}
                onChange={(e) => handleParameterChange(key, e.target.value)}
-               className="w-32 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+               className="w-24 px-1 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
          </div>
       );
@@ -162,35 +164,38 @@ export const OperationParameters: React.FC<OperationParametersProps> = ({
    return (
       <div
          className={cn(
-            "bg-white border border-gray-200 rounded-lg p-4 shadow-sm",
+            "bg-blue-50 border border-blue-200 rounded p-2",
             className
          )}
       >
-         <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">
-               {operation.name}
-            </h3>
+         <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+               <h4 className="text-sm font-medium text-gray-900">
+                  {operation.name}
+               </h4>
+               <button
+                  onClick={onExecute}
+                  className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none transition-colors"
+               >
+                  Apply
+               </button>
+            </div>
+            <button
+               onClick={onClose}
+               className="text-gray-400 hover:text-gray-600 focus:outline-none"
+               title="Close"
+            >
+               ✕
+            </button>
          </div>
 
-         <p className="text-sm text-gray-600 mb-4">{operation.description}</p>
-
          {Object.keys(currentParameters).length > 0 && (
-            <div className="space-y-3 mb-4">
-               <h4 className="text-sm font-medium text-gray-700">
-                  Parameters:
-               </h4>
+            <div className="flex items-center gap-3 flex-wrap">
                {Object.entries(currentParameters).map(([key, value]) =>
                   renderParameterInput(key, value)
                )}
             </div>
          )}
-
-         <button
-            onClick={onExecute}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-         >
-            Apply {operation.name}
-         </button>
       </div>
    );
 };

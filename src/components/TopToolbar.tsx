@@ -14,10 +14,13 @@ interface TopToolbarProps {
    onScaleChange: (scale: number | "auto") => void;
    onSmoothEdgesToggle: (enabled: boolean) => void;
    onCompareToggle: (enabled: boolean) => void;
+   onPixelOutlineToggle: (enabled: boolean) => void;
    maxPixelRatio: number | "auto";
    smoothEdges: boolean;
    compareMode: boolean;
+   showPixelOutline: boolean;
    disabled?: boolean;
+   showApplyButton?: boolean;
 }
 
 const SCALE_PRESETS = [
@@ -33,10 +36,13 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
    onScaleChange,
    onSmoothEdgesToggle,
    onCompareToggle,
+   onPixelOutlineToggle,
    maxPixelRatio,
    smoothEdges,
    compareMode,
+   showPixelOutline,
    disabled = false,
+   showApplyButton = true,
 }) => {
    const [showCustomScale, setShowCustomScale] = useState(false);
    const [customScaleValue, setCustomScaleValue] = useState<number>(
@@ -68,39 +74,39 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
 
    return (
       <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm">
-         {/* Left Section - Save Button */}
+         {/* Left Section - Apply Button (only show when there's a processed result to apply) */}
          <div className="flex items-center space-x-3">
-            <button
-               onClick={onSave}
-               disabled={disabled}
-               className={cn(
-                  "flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors",
-                  disabled
-                     ? "opacity-50 cursor-not-allowed"
-                     : "hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-               )}
-               title="Apply processed result to original image"
-            >
-               <Check size={16} />
-               <span className="font-medium">Apply</span>
-            </button>
+            {showApplyButton && (
+               <button
+                  onClick={onSave}
+                  disabled={disabled}
+                  className={cn(
+                     "flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg transition-colors",
+                     disabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  )}
+                  title="Apply sidebar operation result to input image"
+               >
+                  <Check size={16} />
+                  <span className="font-medium">Apply</span>
+               </button>
+            )}
          </div>
 
          {/* Center Section - Scale Controls */}
          <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
                <Image size={16} className="text-gray-600" />
-               <span className="text-sm font-medium text-gray-700">Max Pixel Ratio:</span>
+               <span className="text-sm font-medium text-gray-700">
+                  Max Pixel Ratio:
+               </span>
 
                {!showCustomScale ? (
                   <select
                      value={maxPixelRatio === "auto" ? "auto" : maxPixelRatio}
                      onChange={(e) => handleScalePresetChange(e.target.value)}
-                     disabled={disabled}
-                     className={cn(
-                        "px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
-                        disabled && "opacity-50 cursor-not-allowed"
-                     )}
+                     className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                      {SCALE_PRESETS.map((preset) => (
                         <option key={preset.label} value={preset.value}>
@@ -136,6 +142,33 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
                   </div>
                )}
             </div>
+
+            {/* Pixel Outline Toggle - Only show when max pixel ratio < 500 */}
+            {typeof maxPixelRatio === "number" && maxPixelRatio < 500 && (
+               <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-gray-700">
+                     Pixel Outline:
+                  </span>
+                  <button
+                     onClick={() => onPixelOutlineToggle(!showPixelOutline)}
+                     className={cn(
+                        "flex items-center p-1 rounded-md transition-colors",
+                        showPixelOutline
+                           ? "text-purple-600 hover:bg-purple-50"
+                           : "text-gray-400 hover:bg-gray-50"
+                     )}
+                     title={`${
+                        showPixelOutline ? "Hide" : "Show"
+                     } pixel outline`}
+                  >
+                     {showPixelOutline ? (
+                        <ToggleRight size={20} />
+                     ) : (
+                        <ToggleLeft size={20} />
+                     )}
+                  </button>
+               </div>
+            )}
          </div>
 
          {/* Right Section - Toggle Controls */}
@@ -148,10 +181,8 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
                </span>
                <button
                   onClick={() => onSmoothEdgesToggle(!smoothEdges)}
-                  disabled={disabled}
                   className={cn(
                      "flex items-center p-1 rounded-md transition-colors",
-                     disabled && "opacity-50 cursor-not-allowed",
                      smoothEdges
                         ? "text-blue-600 hover:bg-blue-50"
                         : "text-gray-400 hover:bg-gray-50"
@@ -174,10 +205,8 @@ export const TopToolbar: React.FC<TopToolbarProps> = ({
                </span>
                <button
                   onClick={() => onCompareToggle(!compareMode)}
-                  disabled={disabled}
                   className={cn(
                      "flex items-center p-1 rounded-md transition-colors",
-                     disabled && "opacity-50 cursor-not-allowed",
                      compareMode
                         ? "text-green-600 hover:bg-green-50"
                         : "text-gray-400 hover:bg-gray-50"
