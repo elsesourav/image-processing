@@ -1,6 +1,6 @@
 import { Move } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "./ui/button";
+import { GridProcessor } from "../utils/grid-processor";
 
 interface ImageViewerProps {
    imageUrl: string | null;
@@ -31,6 +31,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
 }) => {
    const canvasRef = useRef<HTMLCanvasElement>(null);
    const containerRef = useRef<HTMLDivElement>(null);
+   const imageContainerRef = useRef<HTMLDivElement>(null); // New ref for image container with selection overlay
    const [pixelInfo, setPixelInfo] = useState<{
       x: number;
       y: number;
@@ -41,7 +42,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
    } | null>(null);
    const [imageData, setImageData] = useState<HTMLImageElement | null>(null);
 
-   // Region selection state
+   // HTML/CSS/JS-based region selection state
    const [isSelecting, setIsSelecting] = useState(false);
    const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
    const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 });
@@ -51,37 +52,49 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       width: number;
       height: number;
    } | null>(null);
+   const [selectedDisplayRegion, setSelectedDisplayRegion] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+   } | null>(null); // For display coordinates on overlay
 
-   // Calculate optimal display size for the canvas
+   // Calculate optimal display size for the canvas - prioritize height and adjust width to eliminate extra space
    const getDisplaySize = useCallback(() => {
       const container = containerRef.current;
-      if (!container || !imageData) return { width: 0, height: 0 };
+      if (!container || !imageData)
+         return { width: 0, height: 0, containerWidth: 0 };
 
-      // Get available container space (accounting for padding and other elements)
+      // Get available container space
       const containerRect = container.getBoundingClientRect();
-      const availableWidth = containerRect.width - 32; // Account for padding
-      const availableHeight = containerRect.height - 80; // Account for header/footer
+      const availableWidth = containerRect.width - 16; // Small padding
+      const availableHeight = containerRect.height - 16; // Small padding
 
       if (availableWidth <= 0 || availableHeight <= 0) {
-         return { width: 0, height: 0 };
+         return { width: 0, height: 0, containerWidth: availableWidth };
       }
 
       const imageAspect = imageData.naturalWidth / imageData.naturalHeight;
-      const containerAspect = availableWidth / availableHeight;
 
-      let displayWidth, displayHeight;
+      // Always prioritize fitting to height and calculate width accordingly
+      const displayHeight = availableHeight;
+      const displayWidth = displayHeight * imageAspect;
 
-      if (imageAspect > containerAspect) {
-         // Image is wider - fit to width
-         displayWidth = availableWidth;
-         displayHeight = availableWidth / imageAspect;
-      } else {
-         // Image is taller - fit to height
-         displayHeight = availableHeight;
-         displayWidth = availableHeight * imageAspect;
+      // If calculated width exceeds available width, then fit to width instead
+      if (displayWidth > availableWidth) {
+         return {
+            width: availableWidth,
+            height: availableWidth / imageAspect,
+            containerWidth: availableWidth,
+         };
       }
 
-      return { width: displayWidth, height: displayHeight };
+      // Return dimensions that fit the height and the actual container width for adjustment
+      return {
+         width: displayWidth,
+         height: displayHeight,
+         containerWidth: availableWidth,
+      };
    }, [imageData]);
 
    const drawImage = useCallback(() => {
@@ -93,26 +106,16 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Save context state
-      ctx.save();
+      // For grid-based rendering, we'll convert the image to grid and then render
+      // This allows us to apply max pixel ratio scaling properly
+      const gridData = GridProcessor.imageToGrid(imageData);
 
-      // Canvas is now always at actual image size, so just apply maxPixelRatio scaling if not fitToContainer
-      if (!fitToContainer) {
-         // Apply scale from toolbar only when not fitting to container
-         let scaleMultiplier = 1;
-         if (maxPixelRatio !== "auto") {
-            scaleMultiplier = maxPixelRatio / 100;
-         }
-         ctx.scale(scaleMultiplier, scaleMultiplier);
-      }
-
-      // Set image smoothing based on smooth edges setting
-      ctx.imageSmoothingEnabled = smoothEdges;
-
-      // Draw image at actual size (canvas is already sized correctly)
-      const imgWidth = imageData.naturalWidth;
-      const imgHeight = imageData.naturalHeight;
-      ctx.drawImage(imageData, 0, 0, imgWidth, imgHeight);
+      // Draw the grid to canvas with proper scaling
+      GridProcessor.drawGridToCanvas(
+         canvas,
+         gridData,
+         typeof maxPixelRatio === "number" ? maxPixelRatio : "auto"
+      );
 
       // Draw pixel outline if enabled
       if (
@@ -120,59 +123,44 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
          typeof maxPixelRatio === "number" &&
          maxPixelRatio < 500
       ) {
-         ctx.save();
-
-         // Calculate current display scale to determine if pixel outline should be visible
-         let effectiveScale = 1;
-
-         if (fitToContainer) {
-            // Calculate how much the canvas is scaled when displayed
-            const displaySize = getDisplaySize();
-            const displayScaleX = displaySize.width / canvas.width;
-            const displayScaleY = displaySize.height / canvas.height;
-            effectiveScale = Math.min(displayScaleX, displayScaleY);
-         } else {
-            effectiveScale = maxPixelRatio / 100;
-         }
+         const effectiveScale = maxPixelRatio / 100;
 
          // Only draw pixel grid if pixels are large enough to be visible
          if (effectiveScale >= 2) {
+            ctx.save();
             ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
             ctx.lineWidth = 0.5;
             ctx.setLineDash([]);
 
+            const gridWidth = gridData.grid[0].length;
+            const gridHeight = gridData.grid.length;
+
             // Draw vertical lines
-            for (let x = 0; x <= imgWidth; x++) {
+            for (let x = 0; x <= gridWidth; x++) {
                ctx.beginPath();
-               ctx.moveTo(x, 0);
-               ctx.lineTo(x, imgHeight);
+               ctx.moveTo(x * effectiveScale, 0);
+               ctx.lineTo(x * effectiveScale, gridHeight * effectiveScale);
                ctx.stroke();
             }
 
             // Draw horizontal lines
-            for (let y = 0; y <= imgHeight; y++) {
+            for (let y = 0; y <= gridHeight; y++) {
                ctx.beginPath();
-               ctx.moveTo(0, y);
-               ctx.lineTo(imgWidth, y);
+               ctx.moveTo(0, y * effectiveScale);
+               ctx.lineTo(gridWidth * effectiveScale, y * effectiveScale);
                ctx.stroke();
             }
+
+            ctx.restore();
          }
-
-         ctx.restore();
       }
-
-      // Restore context state
-      ctx.restore();
 
       // Draw region selection overlay if enabled and selecting
       if (enableRegionSelection && isSelecting) {
          ctx.save();
 
          // Calculate selection rectangle in canvas coordinates
-         // Since canvas is now sized to exact display dimensions, coordinates should map directly
          const canvasRect = canvas.getBoundingClientRect();
-
-         // Calculate the scale between display and canvas coordinates
          const scaleX = canvas.width / canvasRect.width;
          const scaleY = canvas.height / canvasRect.height;
 
@@ -208,7 +196,6 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       if (enableRegionSelection && selectedRegion && fitToContainer) {
          ctx.save();
 
-         // Since canvas is now actual image size, region coordinates map directly
          const canvasX = selectedRegion.x;
          const canvasY = selectedRegion.y;
          const canvasWidth = selectedRegion.width;
@@ -258,11 +245,9 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
 
    const handleMouseDown = (e: React.MouseEvent) => {
       if (enableRegionSelection && fitToContainer) {
-         // Start region selection
-         const canvas = canvasRef.current;
-         if (!canvas) return;
-
-         const rect = canvas.getBoundingClientRect();
+         // Start region selection - use overlay div coordinates
+         const target = e.currentTarget as HTMLElement;
+         const rect = target.getBoundingClientRect();
          const x = e.clientX - rect.left;
          const y = e.clientY - rect.top;
 
@@ -274,11 +259,9 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
 
    const handleMouseMove = (e: React.MouseEvent) => {
       if (enableRegionSelection && isSelecting && fitToContainer) {
-         // Update selection rectangle
-         const canvas = canvasRef.current;
-         if (!canvas) return;
-
-         const rect = canvas.getBoundingClientRect();
+         // Update selection rectangle - use overlay div coordinates
+         const target = e.currentTarget as HTMLElement;
+         const rect = target.getBoundingClientRect();
          const x = e.clientX - rect.left;
          const y = e.clientY - rect.top;
 
@@ -340,17 +323,19 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
       if (enableRegionSelection && isSelecting && fitToContainer) {
          // Complete region selection
          const canvas = canvasRef.current;
-         const container = containerRef.current;
-         if (!canvas || !container || !imageData) return;
+         if (!canvas || !imageData) return;
 
-         const rect = canvas.getBoundingClientRect();
-         const endX = e.clientX - rect.left;
-         const endY = e.clientY - rect.top;
+         const target = e.currentTarget as HTMLElement;
+         const targetRect = target.getBoundingClientRect();
+         const endX = e.clientX - targetRect.left;
+         const endY = e.clientY - targetRect.top;
 
-         // Calculate region in image coordinates
-         // Since canvas is now at image resolution, convert display coordinates to image coordinates
-         const scaleX = canvas.width / rect.width;
-         const scaleY = canvas.height / rect.height;
+         // Get display size for scale calculation
+         const displaySize = getDisplaySize();
+
+         // Calculate the scale between overlay coordinates and image coordinates
+         const scaleX = imageData.naturalWidth / displaySize.width;
+         const scaleY = imageData.naturalHeight / displaySize.height;
 
          // Convert selection coordinates to image space
          const imageStartX = Math.max(
@@ -395,29 +380,17 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
 
    return (
       <div
-         className={`flex flex-col h-full border rounded-lg bg-card ${className}`}
+         className={`flex flex-col h-full border rounded-lg bg-card overflow-hidden ${className}`}
       >
-         <div className="flex items-center justify-between p-3 border-b">
-            <h3 className="text-sm font-medium">{title}</h3>
-            <div className="flex items-center gap-1">
-               {enableRegionSelection && selectedRegion && (
-                  <Button
-                     variant="outline"
-                     size="sm"
-                     onClick={() => {
-                        setSelectedRegion(null);
-                        onRegionSelect?.(null);
-                     }}
-                  >
-                     Clear Selection
-                  </Button>
-               )}
-            </div>
+         <div className="flex items-center justify-between p-2 border-b flex-shrink-0">
+            <h3 className="text-xs font-normal text-muted-foreground">
+               {title}
+            </h3>
          </div>
 
          <div
             ref={containerRef}
-            className="flex-1 overflow-hidden relative bg-muted/20"
+            className="flex-1 overflow-hidden relative bg-muted/20 min-h-0 flex items-center justify-center"
             style={{
                cursor:
                   enableRegionSelection && fitToContainer
@@ -425,50 +398,110 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
                         ? "crosshair"
                         : "crosshair"
                      : "default",
+               // Adjust container width to eliminate extra space
+               ...(fitToContainer && imageData
+                  ? (() => {
+                       const displaySize = getDisplaySize();
+                       // If image width is less than container width, adjust container width
+                       if (displaySize.width < displaySize.containerWidth) {
+                          return {
+                             width: `${displaySize.width + 16}px`, // Add padding back
+                             margin: "0 auto", // Center the adjusted container
+                             minWidth: `${displaySize.width + 16}px`,
+                          };
+                       }
+                       return {};
+                    })()
+                  : {}),
             }}
          >
             {imageUrl ? (
-               <canvas
-                  ref={canvasRef}
-                  className={`absolute z-0 ${
-                     fitToContainer ? "inset-0 m-auto" : "top-0 left-0"
-                  }`}
-                  style={{
-                     imageRendering: smoothEdges ? "auto" : "pixelated",
-                     ...(fitToContainer
-                        ? (() => {
-                             const displaySize = getDisplaySize();
-                             return {
-                                width: `${displaySize.width}px`,
-                                height: `${displaySize.height}px`,
-                             };
-                          })()
-                        : {
-                             transform: `scale(${
-                                maxPixelRatio === "auto"
-                                   ? 1
-                                   : maxPixelRatio / 100
-                             })`,
-                             transformOrigin: "top left",
-                          }),
-                  }}
-                  onMouseDown={
-                     enableRegionSelection && fitToContainer
-                        ? handleMouseDown
-                        : undefined
-                  }
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={
-                     enableRegionSelection && fitToContainer
-                        ? handleMouseUp
-                        : undefined
-                  }
-                  onMouseLeave={
-                     enableRegionSelection && fitToContainer
-                        ? handleMouseUp
-                        : undefined
-                  }
-               />
+               <>
+                  <canvas
+                     ref={canvasRef}
+                     className={`${
+                        fitToContainer ? "block" : "absolute top-0 left-0"
+                     }`}
+                     style={{
+                        imageRendering: smoothEdges ? "auto" : "pixelated",
+                        ...(fitToContainer
+                           ? (() => {
+                                const displaySize = getDisplaySize();
+                                return {
+                                   width: `${displaySize.width}px`,
+                                   height: `${displaySize.height}px`,
+                                };
+                             })()
+                           : {
+                                transform: `scale(${
+                                   maxPixelRatio === "auto"
+                                      ? 1
+                                      : maxPixelRatio / 100
+                                })`,
+                                transformOrigin: "top left",
+                             }),
+                     }}
+                  />
+
+                  {/* HTML/CSS Selection Overlay */}
+                  {enableRegionSelection && fitToContainer && (
+                     <div
+                        ref={imageContainerRef}
+                        className="absolute inset-0 z-10 flex items-center justify-center"
+                        style={{ pointerEvents: "auto" }}
+                     >
+                        <div
+                           className="relative"
+                           onMouseDown={handleMouseDown}
+                           onMouseMove={handleMouseMove}
+                           onMouseUp={handleMouseUp}
+                           onMouseLeave={handleMouseUp}
+                           style={{
+                              width: `${getDisplaySize().width}px`,
+                              height: `${getDisplaySize().height}px`,
+                           }}
+                        >
+                           {/* Selection rectangle overlay */}
+                           {isSelecting && (
+                              <div
+                                 className="absolute border-2 border-blue-500 bg-blue-500/20"
+                                 style={{
+                                    left: `${Math.min(
+                                       selectionStart.x,
+                                       selectionEnd.x
+                                    )}px`,
+                                    top: `${Math.min(
+                                       selectionStart.y,
+                                       selectionEnd.y
+                                    )}px`,
+                                    width: `${Math.abs(
+                                       selectionEnd.x - selectionStart.x
+                                    )}px`,
+                                    height: `${Math.abs(
+                                       selectionEnd.y - selectionStart.y
+                                    )}px`,
+                                    pointerEvents: "none",
+                                 }}
+                              />
+                           )}
+
+                           {/* Show completed selection */}
+                           {selectedRegion && !isSelecting && (
+                              <div
+                                 className="absolute border-2 border-green-500 bg-green-500/10"
+                                 style={{
+                                    left: `${selectedRegion.x}px`,
+                                    top: `${selectedRegion.y}px`,
+                                    width: `${selectedRegion.width}px`,
+                                    height: `${selectedRegion.height}px`,
+                                    pointerEvents: "none",
+                                 }}
+                              />
+                           )}
+                        </div>
+                     </div>
+                  )}
+               </>
             ) : (
                <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="text-center">
@@ -480,7 +513,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
          </div>
 
          {showPixelInfo && pixelInfo && (
-            <div className="p-2 border-t bg-muted/50 text-xs">
+            <div className="p-2 border-t bg-muted/50 text-xs flex-shrink-0">
                <div className="grid grid-cols-2 gap-2">
                   <div>
                      Position: ({pixelInfo.x}, {pixelInfo.y})
@@ -494,7 +527,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
          )}
 
          {enableRegionSelection && selectedRegion && (
-            <div className="p-2 border-t bg-muted/50 text-xs">
+            <div className="p-2 border-t bg-muted/50 text-xs flex-shrink-0">
                <div className="grid grid-cols-2 gap-2">
                   <div>
                      Region: ({selectedRegion.x}, {selectedRegion.y})
@@ -503,12 +536,6 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
                      Size: {selectedRegion.width} × {selectedRegion.height}
                   </div>
                </div>
-            </div>
-         )}
-
-         {enableRegionSelection && !selectedRegion && (
-            <div className="p-2 border-t bg-muted/50 text-xs text-center text-muted-foreground">
-               Drag to select a region for zoomed comparison
             </div>
          )}
       </div>

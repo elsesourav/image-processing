@@ -1,5 +1,7 @@
 import { Move } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { GridData } from "../utils/grid-processor";
+import { GridProcessor } from "../utils/grid-processor";
 
 interface ComparisonViewerProps {
    originalImageUrl: string | null;
@@ -33,16 +35,13 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
    const [dividerPosition, setDividerPosition] = useState(50); // Percentage from left
    const [isDraggingDivider, setIsDraggingDivider] = useState(false);
 
-   const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(
-      null
-   );
-   const [processedImage, setProcessedImage] =
-      useState<HTMLImageElement | null>(null);
+   const [originalGrid, setOriginalGrid] = useState<GridData | null>(null);
+   const [processedGrid, setProcessedGrid] = useState<GridData | null>(null);
 
    // Calculate optimal display size for the canvas
    const getDisplaySize = useCallback(() => {
       const container = containerRef.current;
-      if (!container || !originalImage) return { width: 0, height: 0 };
+      if (!container || !originalGrid) return { width: 0, height: 0 };
 
       // Get available container space (accounting for padding and other elements)
       const containerRect = container.getBoundingClientRect();
@@ -53,8 +52,7 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          return { width: 0, height: 0 };
       }
 
-      const imageAspect =
-         originalImage.naturalWidth / originalImage.naturalHeight;
+      const imageAspect = originalGrid.width / originalGrid.height;
       const containerAspect = availableWidth / availableHeight;
 
       let displayWidth, displayHeight;
@@ -70,52 +68,64 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
       }
 
       return { width: displayWidth, height: displayHeight };
-   }, [originalImage]);
+   }, [originalGrid]);
 
    const drawRegionOrComparison = useCallback(() => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!canvas || !container || !ctx || !originalImage || !processedImage)
+      if (!canvas || !container || !ctx || !originalGrid || !processedGrid)
          return;
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Set image smoothing based on smooth edges setting
-      ctx.imageSmoothingEnabled = smoothEdges;
-
       if (selectedRegion) {
-         // Show only the selected region at actual pixel size (or scaled by maxPixelRatio)
-         // Choose which image to show based on divider position
+         // Show only the selected region using grid-based rendering
+         // Choose which grid to show based on divider position
          const showOriginal = dividerPosition < 50;
-         const imageToShow = showOriginal ? originalImage : processedImage;
+         const gridToShow = showOriginal ? originalGrid : processedGrid;
 
-         // Calculate pixel ratio scaling
-         let pixelRatio = 1;
-         if (maxPixelRatio !== "auto") {
-            pixelRatio = maxPixelRatio / 100;
+         // Set canvas to match the selected region size
+         canvas.width = selectedRegion.width;
+         canvas.height = selectedRegion.height;
+
+         // Create a sub-grid for the selected region
+         const subGrid: number[][] = [];
+         for (
+            let y = selectedRegion.y;
+            y < selectedRegion.y + selectedRegion.height;
+            y++
+         ) {
+            const row: number[] = [];
+            for (
+               let x = selectedRegion.x;
+               x < selectedRegion.x + selectedRegion.width;
+               x++
+            ) {
+               if (
+                  y < gridToShow.grid.length &&
+                  x < gridToShow.grid[0].length
+               ) {
+                  row.push(gridToShow.grid[y][x]);
+               } else {
+                  row.push(0); // Black for out-of-bounds
+               }
+            }
+            subGrid.push(row);
          }
 
-         // Set canvas to match the scaled region size
-         const scaledWidth = selectedRegion.width * pixelRatio;
-         const scaledHeight = selectedRegion.height * pixelRatio;
+         const subGridData: GridData = {
+            grid: subGrid,
+            width: selectedRegion.width,
+            height: selectedRegion.height,
+         };
 
-         // Update canvas size to match the scaled region
-         canvas.width = scaledWidth;
-         canvas.height = scaledHeight;
-
-         // Draw the selected region at actual size (scaled by pixel ratio)
-         ctx.drawImage(
-            imageToShow,
-            selectedRegion.x,
-            selectedRegion.y,
-            selectedRegion.width,
-            selectedRegion.height,
-            0,
-            0,
-            scaledWidth,
-            scaledHeight
+         // Draw the selected region using grid processor
+         GridProcessor.drawGridToCanvas(
+            canvas,
+            subGridData,
+            typeof maxPixelRatio === "number" ? maxPixelRatio : "auto"
          );
 
          // Draw pixel outline if enabled for selected region
@@ -124,19 +134,19 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             typeof maxPixelRatio === "number" &&
             maxPixelRatio < 500
          ) {
-            ctx.save();
-            ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
-            ctx.lineWidth = 0.5;
-            ctx.setLineDash([]);
-
-            // Only draw pixel grid if pixels are large enough to be visible
+            const pixelRatio = maxPixelRatio / 100;
             if (pixelRatio >= 2) {
+               ctx.save();
+               ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+               ctx.lineWidth = 0.5;
+               ctx.setLineDash([]);
+
                // Draw vertical lines
                for (let x = 0; x <= selectedRegion.width; x++) {
                   const scaledX = x * pixelRatio;
                   ctx.beginPath();
                   ctx.moveTo(scaledX, 0);
-                  ctx.lineTo(scaledX, scaledHeight);
+                  ctx.lineTo(scaledX, selectedRegion.height * pixelRatio);
                   ctx.stroke();
                }
 
@@ -145,18 +155,18 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
                   const scaledY = y * pixelRatio;
                   ctx.beginPath();
                   ctx.moveTo(0, scaledY);
-                  ctx.lineTo(scaledWidth, scaledY);
+                  ctx.lineTo(selectedRegion.width * pixelRatio, scaledY);
                   ctx.stroke();
                }
-            }
 
-            ctx.restore();
+               ctx.restore();
+            }
          }
       } else {
-         // Show full comparison with divider
+         // Show full comparison with divider using grid-based rendering
          // Set canvas to actual image size for maximum quality
-         canvas.width = originalImage.naturalWidth;
-         canvas.height = originalImage.naturalHeight;
+         canvas.width = originalGrid.width;
+         canvas.height = originalGrid.height;
 
          const canvasWidth = canvas.width;
          const canvasHeight = canvas.height;
@@ -164,39 +174,27 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          // Calculate divider position in pixels on the canvas
          const dividerX = (dividerPosition / 100) * canvasWidth;
 
-         // Draw original image (left side)
+         // Draw original grid (left side)
          ctx.save();
          ctx.beginPath();
          ctx.rect(0, 0, dividerX, canvasHeight);
          ctx.clip();
-         ctx.drawImage(
-            originalImage,
-            0,
-            0,
-            originalImage.naturalWidth,
-            originalImage.naturalHeight,
-            0,
-            0,
-            canvasWidth,
-            canvasHeight
+         GridProcessor.drawGridToCanvas(
+            canvas,
+            originalGrid,
+            typeof maxPixelRatio === "number" ? maxPixelRatio : "auto"
          );
          ctx.restore();
 
-         // Draw processed image (right side)
+         // Draw processed grid (right side)
          ctx.save();
          ctx.beginPath();
          ctx.rect(dividerX, 0, canvasWidth - dividerX, canvasHeight);
          ctx.clip();
-         ctx.drawImage(
-            processedImage,
-            0,
-            0,
-            processedImage.naturalWidth,
-            processedImage.naturalHeight,
-            0,
-            0,
-            canvasWidth,
-            canvasHeight
+         GridProcessor.drawGridToCanvas(
+            canvas,
+            processedGrid,
+            typeof maxPixelRatio === "number" ? maxPixelRatio : "auto"
          );
          ctx.restore();
 
@@ -214,46 +212,40 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             typeof maxPixelRatio === "number" &&
             maxPixelRatio < 500
          ) {
-            ctx.save();
-            ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
-            ctx.lineWidth = 0.5;
-            ctx.setLineDash([]);
+            const pixelRatio = maxPixelRatio / 100;
+            if (pixelRatio >= 2) {
+               ctx.save();
+               ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+               ctx.lineWidth = 0.5;
+               ctx.setLineDash([]);
 
-            // Calculate current display scale to determine if pixel outline should be visible
-            const displaySize = getDisplaySize();
-            const displayScaleX = displaySize.width / canvasWidth;
-            const displayScaleY = displaySize.height / canvasHeight;
-            const displayScale = Math.min(displayScaleX, displayScaleY);
-
-            // Only draw pixel grid if pixels are large enough to be visible when displayed
-            if (displayScale >= 2) {
                // Draw vertical lines
-               for (let x = 0; x <= originalImage.naturalWidth; x++) {
+               for (let x = 0; x <= originalGrid.width; x++) {
                   ctx.beginPath();
-                  ctx.moveTo(x, 0);
-                  ctx.lineTo(x, canvasHeight);
+                  ctx.moveTo(x * pixelRatio, 0);
+                  ctx.lineTo(x * pixelRatio, canvasHeight * pixelRatio);
                   ctx.stroke();
                }
 
                // Draw horizontal lines
-               for (let y = 0; y <= originalImage.naturalHeight; y++) {
+               for (let y = 0; y <= originalGrid.height; y++) {
                   ctx.beginPath();
-                  ctx.moveTo(0, y);
-                  ctx.lineTo(canvasWidth, y);
+                  ctx.moveTo(0, y * pixelRatio);
+                  ctx.lineTo(canvasWidth * pixelRatio, y * pixelRatio);
                   ctx.stroke();
                }
-            }
 
-            ctx.restore();
+               ctx.restore();
+            }
          }
       }
    }, [
-      originalImage,
-      processedImage,
+      originalGrid,
+      processedGrid,
       dividerPosition,
-      smoothEdges,
       selectedRegion,
       maxPixelRatio,
+      showPixelOutline,
    ]);
 
    // Load original image
@@ -262,7 +254,9 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
 
       const img = new Image();
       img.onload = () => {
-         setOriginalImage(img);
+         // Convert to grid for grid-based processing
+         const gridData = GridProcessor.imageToGrid(img);
+         setOriginalGrid(gridData);
       };
       img.src = originalImageUrl;
    }, [originalImageUrl]);
@@ -273,16 +267,18 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
 
       const img = new Image();
       img.onload = () => {
-         setProcessedImage(img);
+         // Convert to grid for grid-based processing
+         const gridData = GridProcessor.imageToGrid(img);
+         setProcessedGrid(gridData);
       };
       img.src = processedImageUrl;
    }, [processedImageUrl]);
 
-   // Update canvas size when both images are loaded
+   // Update canvas size when both grids are loaded
    useEffect(() => {
       if (
-         originalImage &&
-         processedImage &&
+         originalGrid &&
+         processedGrid &&
          canvasRef.current &&
          containerRef.current
       ) {
@@ -298,12 +294,12 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
             canvas.width = selectedRegion.width * pixelRatio;
             canvas.height = selectedRegion.height * pixelRatio;
          } else {
-            // For full comparison, set canvas to actual image size for maximum quality
-            canvas.width = originalImage.naturalWidth;
-            canvas.height = originalImage.naturalHeight;
+            // For full comparison, set canvas to actual grid size for maximum quality
+            canvas.width = originalGrid.width;
+            canvas.height = originalGrid.height;
          }
       }
-   }, [originalImage, processedImage, selectedRegion, maxPixelRatio]);
+   }, [originalGrid, processedGrid, selectedRegion, maxPixelRatio]);
 
    useEffect(() => {
       drawRegionOrComparison();
@@ -322,7 +318,6 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          // Calculate the actual displayed image bounds within the container
          const displaySize = getDisplaySize();
          const containerWidth = containerRect.width - 32; // Account for padding
-         const containerHeight = containerRect.height - 80; // Account for header
 
          // Calculate image position within container (centered)
          const offsetX = 16 + (containerWidth - displaySize.width) / 2; // Padding + centering
@@ -347,7 +342,7 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
    };
 
    const getDividerStyle = () => {
-      if (!originalImage || !containerRef.current || selectedRegion)
+      if (!originalGrid || !containerRef.current || selectedRegion)
          return { display: "none" };
 
       const container = containerRef.current;
@@ -388,7 +383,7 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
 
          <div
             ref={containerRef}
-            className="flex-1 overflow-hidden relative bg-muted/20"
+            className="flex-1 overflow-hidden relative bg-muted/20 flex"
             style={{
                cursor: isDraggingDivider ? "col-resize" : "default",
             }}
@@ -398,52 +393,55 @@ export const ComparisonViewer: React.FC<ComparisonViewerProps> = ({
          >
             {originalImageUrl && processedImageUrl ? (
                <>
-                  <canvas
-                     ref={canvasRef}
-                     className="absolute z-0 inset-0 m-auto"
-                     style={{
-                        imageRendering: smoothEdges ? "auto" : "pixelated",
-                        ...(() => {
-                           if (selectedRegion) {
-                              // For selected regions, use the scaled region size
-                              let pixelRatio = 1;
-                              if (maxPixelRatio !== "auto") {
-                                 pixelRatio = maxPixelRatio / 100;
+                  {/* Main canvas area */}
+                  <div className="flex-1 relative">
+                     <canvas
+                        ref={canvasRef}
+                        className="absolute z-0 inset-0 m-auto"
+                        style={{
+                           imageRendering: smoothEdges ? "auto" : "pixelated",
+                           ...(() => {
+                              if (selectedRegion) {
+                                 // For selected regions, use the scaled region size
+                                 let pixelRatio = 1;
+                                 if (maxPixelRatio !== "auto") {
+                                    pixelRatio = maxPixelRatio / 100;
+                                 }
+                                 return {
+                                    width: `${
+                                       selectedRegion.width * pixelRatio
+                                    }px`,
+                                    height: `${
+                                       selectedRegion.height * pixelRatio
+                                    }px`,
+                                 };
+                              } else {
+                                 // For full comparison, use calculated display size
+                                 const displaySize = getDisplaySize();
+                                 return {
+                                    width: `${displaySize.width}px`,
+                                    height: `${displaySize.height}px`,
+                                 };
                               }
-                              return {
-                                 width: `${
-                                    selectedRegion.width * pixelRatio
-                                 }px`,
-                                 height: `${
-                                    selectedRegion.height * pixelRatio
-                                 }px`,
-                              };
-                           } else {
-                              // For full comparison, use calculated display size
-                              const displaySize = getDisplaySize();
-                              return {
-                                 width: `${displaySize.width}px`,
-                                 height: `${displaySize.height}px`,
-                              };
-                           }
-                        })(),
-                     }}
-                  />
+                           })(),
+                        }}
+                     />
 
-                  {/* Draggable divider handle - only show when not displaying selected region */}
-                  {!selectedRegion && (
-                     <div
-                        ref={dividerRef}
-                        className="absolute z-10 w-1 bg-red-500 cursor-col-resize opacity-80 hover:opacity-100 transition-opacity"
-                        style={getDividerStyle()}
-                        onMouseDown={handleDividerMouseDown}
-                     >
-                        {/* Divider handle */}
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
-                           <div className="w-2 h-2 bg-white rounded-full"></div>
+                     {/* Draggable divider handle - only show when not displaying selected region */}
+                     {!selectedRegion && (
+                        <div
+                           ref={dividerRef}
+                           className="absolute z-10 w-1 bg-red-500 cursor-col-resize opacity-80 hover:opacity-100 transition-opacity"
+                           style={getDividerStyle()}
+                           onMouseDown={handleDividerMouseDown}
+                        >
+                           {/* Divider handle */}
+                           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                           </div>
                         </div>
-                     </div>
-                  )}
+                     )}
+                  </div>
                </>
             ) : (
                <div className="flex items-center justify-center h-full text-muted-foreground">

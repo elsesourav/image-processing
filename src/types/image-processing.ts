@@ -4,6 +4,16 @@ export interface ImageData {
    height: number;
 }
 
+// Grid-based image data structures
+export type ImageGrid = number[][];
+
+export interface GridData {
+   grid: ImageGrid;
+   width: number;
+   height: number;
+   originalImageUrl?: string;
+}
+
 export interface ProcessingOperation {
    id: string;
    name: string;
