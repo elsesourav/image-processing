@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
+import { ComparisonViewer } from "./components/ComparisonViewer";
 import { ImageUpload } from "./components/ImageUpload";
 import { ImageViewer } from "./components/ImageViewer";
 import { OperationParameters } from "./components/OperationParameters";
 import { Sidebar } from "./components/Sidebar";
+import { TopToolbar } from "./components/TopToolbar";
 import { type ImageData, type ProcessingOperation } from "./types";
 import { ImageProcessor } from "./utils/image-processing";
 
@@ -109,6 +111,31 @@ function App() {
       Record<string, number | string | boolean>
    >({});
 
+   // Toolbar state
+   const [maxPixelRatio, setMaxPixelRatio] = useState<number | "auto">(100);
+   const [smoothEdges, setSmoothEdges] = useState(false);
+   const [compareMode, setCompareMode] = useState(false);
+
+   // Region selection state
+   const [inputRegion, setInputRegion] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+   } | null>(null);
+   const [outputRegion, setOutputRegion] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+   } | null>(null);
+   const [activeRegion, setActiveRegion] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+   } | null>(null);
+
    const handleImageLoad = useCallback((imageUrl: string) => {
       setOriginalImage(imageUrl);
       setProcessedImage(imageUrl); // Initially, processed image is same as original
@@ -211,104 +238,205 @@ function App() {
       }
    }, [selectedOperation, operationParameters, processImage]);
 
+   // Toolbar handlers
+   const handleSave = useCallback(() => {
+      if (!processedImage) {
+         alert("No processed image to save");
+         return;
+      }
+
+      // Apply the processed image back to the original image
+      setOriginalImage(processedImage);
+      setLastOperation("Saved - Applied to Original");
+
+      // Optionally show a success message
+      console.log("Processed image applied to original successfully");
+   }, [processedImage]);
+
+   const handleScaleChange = useCallback((scale: number | "auto") => {
+      setMaxPixelRatio(scale);
+   }, []);
+
+   const handleSmoothEdgesToggle = useCallback((enabled: boolean) => {
+      setSmoothEdges(enabled);
+   }, []);
+
+   const handleCompareToggle = useCallback((enabled: boolean) => {
+      setCompareMode(enabled);
+      // Clear regions when toggling compare mode
+      if (!enabled) {
+         setInputRegion(null);
+         setOutputRegion(null);
+         setActiveRegion(null);
+      }
+   }, []);
+
+   // Region selection handlers
+   const handleInputRegionSelect = useCallback(
+      (
+         region: { x: number; y: number; width: number; height: number } | null
+      ) => {
+         setInputRegion(region);
+         setActiveRegion(region); // Use input region as active when selected
+      },
+      []
+   );
+
+   const handleOutputRegionSelect = useCallback(
+      (
+         region: { x: number; y: number; width: number; height: number } | null
+      ) => {
+         setOutputRegion(region);
+         setActiveRegion(region); // Use output region as active when selected
+      },
+      []
+   );
+
    return (
-      <div className="min-h-screen bg-background flex relative">
-         {/* Sidebar Navigation - Only show when image is loaded */}
+      <div className="min-h-screen bg-background flex flex-col relative">
+         {/* Top Toolbar - Only show when image is loaded */}
          {originalImage && (
-            <Sidebar onOperationSelect={handleOperationSelect} />
+            <TopToolbar
+               onSave={handleSave}
+               onScaleChange={handleScaleChange}
+               onSmoothEdgesToggle={handleSmoothEdgesToggle}
+               onCompareToggle={handleCompareToggle}
+               maxPixelRatio={maxPixelRatio}
+               smoothEdges={smoothEdges}
+               compareMode={compareMode}
+               disabled={!processedImage}
+            />
          )}
 
-         {/* Operation Parameters Panel - Show when operation is selected */}
-         {selectedOperation && (
-            <div className="w-80 border-r bg-background p-4">
-               <OperationParameters
-                  operation={selectedOperation}
-                  onParametersChange={handleParametersChange}
-                  onExecute={executeOperation}
-               />
-               <button
-                  onClick={() => setSelectedOperation(null)}
-                  className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-               >
-                  Cancel
-               </button>
-            </div>
-         )}
+         {/* Main Content Area */}
+         <div className="flex-1 flex relative">
+            {/* Sidebar Navigation - Only show when image is loaded */}
+            {originalImage && (
+               <Sidebar onOperationSelect={handleOperationSelect} />
+            )}
 
-         {/* Main Content */}
-         <div className="flex-1 flex flex-col">
-            {originalImage ? (
-               // When image is loaded - show image viewers and status
-               <>
-                  {/* Status Bar with Change Image Button */}
-                  <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between">
-                     <div>
-                        {lastOperation && (
-                           <p className="text-sm text-muted-foreground">
-                              Last operation:{" "}
-                              <span className="font-medium text-foreground">
-                                 {lastOperation}
-                              </span>
-                           </p>
-                        )}
-                     </div>
-                     <button
-                        onClick={handleResetImage}
-                        className="text-xs px-3 py-1 bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
-                     >
-                        Change Image
-                     </button>
-                  </div>
-
-                  {/* Image Viewers */}
-                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-auto">
-                     {/* Viewport 0: Zoomable viewer with pixel inspection */}
-                     <ImageViewer
-                        imageUrl={processedImage}
-                        title="Zoomable Viewer (with pixel info)"
-                        showPixelInfo={true}
-                        className="lg:col-span-1"
-                     />
-
-                     {/* Viewport 1: Original image */}
-                     <ImageViewer
-                        imageUrl={originalImage}
-                        title="Original Image"
-                        className="lg:col-span-1"
-                     />
-
-                     {/* Viewport 2: Processed image */}
-                     <ImageViewer
-                        imageUrl={processedImage}
-                        title="Processed Image"
-                        className="lg:col-span-1"
-                     />
-                  </div>
-               </>
-            ) : (
-               // When no image is loaded - show welcome screen with upload
-               <div className="flex-1 flex items-center justify-center p-8">
-                  <div className="text-center max-w-2xl w-full">
-                     <h1 className="text-4xl font-bold mb-6">
-                        Image Processing Studio
-                     </h1>
-                     <p className="text-xl text-muted-foreground mb-8">
-                        Upload an image or load the demo to start exploring
-                        image processing operations
-                     </p>
-                     <div className="max-w-md mx-auto">
-                        <ImageUpload
-                           onImageLoad={handleImageLoad}
-                           onLoadDemo={handleLoadDemo}
-                        />
-                     </div>
-                     <p className="text-sm text-muted-foreground mt-6">
-                        Once you load an image, the operations sidebar will
-                        appear with various image processing tools
-                     </p>
-                  </div>
+            {/* Operation Parameters Panel - Show when operation is selected */}
+            {selectedOperation && (
+               <div className="w-80 border-r bg-background p-4">
+                  <OperationParameters
+                     operation={selectedOperation}
+                     onParametersChange={handleParametersChange}
+                     onExecute={executeOperation}
+                  />
+                  <button
+                     onClick={() => setSelectedOperation(null)}
+                     className="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                     Cancel
+                  </button>
                </div>
             )}
+
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col">
+               {originalImage ? (
+                  // When image is loaded - show image viewers and status
+                  <>
+                     {/* Status Bar with Change Image Button */}
+                     <div className="px-4 py-2 bg-muted/50 border-b flex items-center justify-between">
+                        <div>
+                           {lastOperation && (
+                              <p className="text-sm text-muted-foreground">
+                                 Last operation:{" "}
+                                 <span className="font-medium text-foreground">
+                                    {lastOperation}
+                                 </span>
+                              </p>
+                           )}
+                        </div>
+                        <button
+                           onClick={handleResetImage}
+                           className="text-xs px-3 py-1 bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
+                        >
+                           Change Image
+                        </button>
+                     </div>{" "}
+                     {/* Image Viewers */}
+                     <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+                        {/* Top Section: Input | Output (or merged comparison) */}
+                        <div className="h-1/2">
+                           {compareMode ? (
+                              // Compare Mode - Merged view with comparison line
+                              <ComparisonViewer
+                                 originalImageUrl={originalImage}
+                                 processedImageUrl={processedImage}
+                                 maxPixelRatio={maxPixelRatio}
+                                 smoothEdges={smoothEdges}
+                                 className="h-full"
+                              />
+                           ) : (
+                              // Normal Mode - Side by side input | output
+                              <div className="flex gap-4 h-full">
+                                 <ImageViewer
+                                    imageUrl={originalImage}
+                                    title="Original Image (Input)"
+                                    maxPixelRatio={maxPixelRatio}
+                                    smoothEdges={smoothEdges}
+                                    fitToContainer={true}
+                                    enableRegionSelection={true}
+                                    onRegionSelect={handleInputRegionSelect}
+                                    className="flex-1"
+                                 />
+                                 <ImageViewer
+                                    imageUrl={processedImage}
+                                    title="Processed Image (Output)"
+                                    maxPixelRatio={maxPixelRatio}
+                                    smoothEdges={smoothEdges}
+                                    fitToContainer={true}
+                                    enableRegionSelection={true}
+                                    onRegionSelect={handleOutputRegionSelect}
+                                    className="flex-1"
+                                 />
+                              </div>
+                           )}
+                        </div>
+
+                        {/* Bottom Section: Selected Region View */}
+                        {activeRegion && (
+                           <div className="h-1/2">
+                              <ComparisonViewer
+                                 originalImageUrl={originalImage}
+                                 processedImageUrl={processedImage}
+                                 maxPixelRatio={maxPixelRatio}
+                                 smoothEdges={smoothEdges}
+                                 selectedRegion={activeRegion}
+                                 showZoomControls={false}
+                                 className="h-full"
+                              />
+                           </div>
+                        )}
+                     </div>
+                  </>
+               ) : (
+                  // When no image is loaded - show welcome screen with upload
+                  <div className="flex-1 flex items-center justify-center p-8">
+                     <div className="text-center max-w-2xl w-full">
+                        <h1 className="text-4xl font-bold mb-6">
+                           Image Processing Studio
+                        </h1>
+                        <p className="text-xl text-muted-foreground mb-8">
+                           Upload an image or load the demo to start exploring
+                           image processing operations
+                        </p>
+                        <div className="max-w-md mx-auto">
+                           <ImageUpload
+                              onImageLoad={handleImageLoad}
+                              onLoadDemo={handleLoadDemo}
+                           />
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-6">
+                           Once you load an image, the operations sidebar will
+                           appear with various image processing tools
+                        </p>
+                     </div>
+                  </div>
+               )}
+            </div>
          </div>
       </div>
    );
